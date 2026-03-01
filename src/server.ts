@@ -5,9 +5,11 @@ import { AgentBlueprintClient } from './client.js';
 import type { Config } from './config.js';
 import { readBlueprint, blueprintResourceTemplate } from './resources/blueprint.js';
 import { readBlueprintList, blueprintListResource } from './resources/blueprints.js';
+import { readBusinessProfile, businessProfileResource } from './resources/business-profile.js';
 import { readSpec, specResourceTemplate } from './resources/spec.js';
 import { handleGetBlueprint } from './tools/get-blueprint.js';
 import { handleGetBusinessCase } from './tools/get-business-case.js';
+import { handleGetBusinessProfile } from './tools/get-business-profile.js';
 import { handleGetImplementationPlan } from './tools/get-implementation-plan.js';
 import { handleGetImplementationSpec } from './tools/get-implementation-spec.js';
 import { handleGetUseCase } from './tools/get-use-case.js';
@@ -22,6 +24,13 @@ export function createServer(config: Config): McpServer {
   });
 
   // ─── Tools ──────────────────────────────────────────────────────────
+
+  server.tool(
+    'get_business_profile',
+    'Get the business profile for the organization. Returns company details, industry, strategic initiatives, technology profile, and AI readiness score.',
+    {},
+    async () => handleGetBusinessProfile(client)
+  );
 
   server.tool(
     'list_blueprints',
@@ -66,6 +75,12 @@ export function createServer(config: Config): McpServer {
   );
 
   // ─── Resources ──────────────────────────────────────────────────────
+
+  server.resource(
+    businessProfileResource.uri,
+    businessProfileResource.uri,
+    async () => readBusinessProfile(client)
+  );
 
   server.resource(
     blueprintListResource.uri,

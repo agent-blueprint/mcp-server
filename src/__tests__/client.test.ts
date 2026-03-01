@@ -16,6 +16,26 @@ describe('AgentBlueprintClient', () => {
     vi.restoreAllMocks();
   });
 
+  it('getBusinessProfile calls correct endpoint', async () => {
+    const profileData = { id: 'prof-1', companyName: 'Acme Corp', industry: 'Technology' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: profileData, timestamp: '' }),
+    }));
+
+    const result = await client.getBusinessProfile();
+
+    expect(result).toEqual(profileData);
+    expect(fetch).toHaveBeenCalledWith(
+      'https://test.agentblueprint.ai/api/v1/business-profile',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer ab_live_test1234567890',
+        }),
+      })
+    );
+  });
+
   it('listBlueprints sends correct request', async () => {
     const mockData = [
       { id: 'bp-1', title: 'Test BP', version: 1, platform: 'general', agentCount: 2 },

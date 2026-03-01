@@ -40,6 +40,10 @@ export class AgentBlueprintClient {
     return json.data;
   }
 
+  async getBusinessProfile(): Promise<BusinessProfile> {
+    return this.request<BusinessProfile>('/business-profile');
+  }
+
   async listBlueprints(): Promise<BlueprintSummary[]> {
     return this.request<BlueprintSummary[]>('/blueprints');
   }
@@ -118,4 +122,24 @@ export interface ImplementationSpecResponse {
     referenceFileCount: number;
     totalFileCount: number;
   };
+}
+
+export interface BusinessProfile {
+  id: string;
+  organizationId: string;
+  companyName: string;
+  industry: string | null;
+  size: string | null;
+  revenue: string | null;
+  currency: string;
+  description: string | null;
+  companyWebsite: string | null;
+  strategicInitiatives: unknown[];
+  technologyProfile: Record<string, unknown> | null;
+  organizationalCapabilities: Record<string, unknown> | null;
+  businessOperations: Record<string, unknown> | null;
+  constraintsProfile: Record<string, unknown> | null;
+  aiReadinessScore: number | null;
+  createdAt: string;
+  updatedAt: string;
 }

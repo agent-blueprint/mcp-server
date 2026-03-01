@@ -4,6 +4,7 @@ import { AgentBlueprintClient } from '../client.js';
 import { handleListBlueprints } from '../tools/list-blueprints.js';
 import { handleGetBlueprint } from '../tools/get-blueprint.js';
 import { handleGetBusinessCase } from '../tools/get-business-case.js';
+import { handleGetBusinessProfile } from '../tools/get-business-profile.js';
 
 const mockConfig = {
   apiKey: 'ab_live_test',
@@ -16,6 +17,34 @@ describe('Tool handlers', () => {
   beforeEach(() => {
     client = new AgentBlueprintClient(mockConfig);
     vi.restoreAllMocks();
+  });
+
+  it('handleGetBusinessProfile returns formatted JSON', async () => {
+    const data = { id: 'prof-1', companyName: 'Acme Corp', industry: 'Technology' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data, timestamp: '' }),
+    }));
+
+    const result = await handleGetBusinessProfile(client);
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe('text');
+    expect(JSON.parse(result.content[0].text)).toEqual(data);
+  });
+
+  it('handleGetBusinessProfile returns error on failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      json: () => Promise.resolve({ error: 'No business profile found' }),
+    }));
+
+    const result = await handleGetBusinessProfile(client);
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('No business profile found');
   });
 
   it('handleListBlueprints returns formatted JSON', async () => {
