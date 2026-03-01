@@ -1,4 +1,4 @@
-import type { AgentBlueprintClient } from '../client.js';
+import type { AgentBlueprintClient, BlueprintDetail } from '../client.js';
 import { formatError } from '../errors.js';
 
 export const getBlueprintTool = {
@@ -16,17 +16,46 @@ export const getBlueprintTool = {
   },
 };
 
+/**
+ * Strip verbose tool sample data from the blueprint to reduce response size.
+ * enhancedTools carry sampleOutput/expectedOutput/expectedInput (~35K chars)
+ * that are useful in the UI but not for coding agents consuming via MCP.
+ */
+function stripToolSamples(blueprint: BlueprintDetail): BlueprintDetail {
+  const data = blueprint.data as Record<string, unknown>;
+  const team = data.enhancedDigitalTeam;
+  if (!Array.isArray(team)) return blueprint;
+
+  const stripped = team.map((agent: Record<string, unknown>) => {
+    const tools = agent.enhancedTools;
+    if (!Array.isArray(tools)) return agent;
+    return {
+      ...agent,
+      enhancedTools: tools.map((tool: Record<string, unknown>) => {
+        const { sampleOutput, expectedOutput, expectedInput, ...rest } = tool;
+        return rest;
+      }),
+    };
+  });
+
+  return {
+    ...blueprint,
+    data: { ...data, enhancedDigitalTeam: stripped },
+  };
+}
+
 export async function handleGetBlueprint(
   client: AgentBlueprintClient,
   args: { blueprintId: string }
 ) {
   try {
     const blueprint = await client.getBlueprint(args.blueprintId);
+    const slim = stripToolSamples(blueprint);
     return {
       content: [
         {
           type: 'text' as const,
-          text: JSON.stringify(blueprint, null, 2),
+          text: JSON.stringify(slim, null, 2),
         },
       ],
     };
