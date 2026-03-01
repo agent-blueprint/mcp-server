@@ -14,13 +14,14 @@ import { handleGetImplementationPlan } from './tools/get-implementation-plan.js'
 import { handleGetImplementationSpec } from './tools/get-implementation-spec.js';
 import { handleGetUseCase } from './tools/get-use-case.js';
 import { handleListBlueprints } from './tools/list-blueprints.js';
+import { handleDownloadBlueprint } from './tools/download-blueprint.js';
 
 export function createServer(config: Config): McpServer {
   const client = new AgentBlueprintClient(config);
 
   const server = new McpServer({
     name: 'agent-blueprint',
-    version: '0.1.0',
+    version: '0.2.0',
   });
 
   // ─── Tools ──────────────────────────────────────────────────────────
@@ -41,21 +42,21 @@ export function createServer(config: Config): McpServer {
 
   server.tool(
     'get_blueprint',
-    'Get full blueprint data by ID. Returns the complete blueprint including agents, patterns, architecture, and all configuration.',
+    'Get a blueprint summary by ID. Returns title, executive summary, agentic pattern, platform, agent names/roles, and phase overview. For full details, use download_blueprint.',
     { blueprintId: z.string().describe('The blueprint ID (UUID)') },
     async (args) => handleGetBlueprint(client, args)
   );
 
   server.tool(
     'get_business_case',
-    'Get the latest business case for a blueprint. Returns financial analysis, ROI projections, cost breakdown, and executive summary.',
+    'Get a business case summary for a blueprint. Returns executive summary, headline ROI numbers, pilot economics, and recommendation. For full financial analysis, use download_blueprint.',
     { blueprintId: z.string().describe('The blueprint ID (UUID)') },
     async (args) => handleGetBusinessCase(client, args)
   );
 
   server.tool(
     'get_implementation_plan',
-    'Get the latest implementation plan for a blueprint. Returns epics, stories, dependencies, timeline, and resource requirements.',
+    'Get an implementation plan summary for a blueprint. Returns project overview, epic names with phases and story counts, and timeline. For full stories and dependencies, use download_blueprint.',
     { blueprintId: z.string().describe('The blueprint ID (UUID)') },
     async (args) => handleGetImplementationPlan(client, args)
   );
@@ -72,6 +73,13 @@ export function createServer(config: Config): McpServer {
     'Get the compiled implementation spec for a blueprint. Returns metadata about the spec package including agent count, platform, and what artifacts are included.',
     { blueprintId: z.string().describe('The blueprint ID (UUID)') },
     async (args) => handleGetImplementationSpec(client, args)
+  );
+
+  server.tool(
+    'download_blueprint',
+    'Download a blueprint as an Agent Skills directory. Returns a JSON manifest with all files (SKILL.md, reference docs, scripts) that can be written to disk for any coding agent to consume. Use this instead of reading full blueprint/business-case/plan data via individual tools.',
+    { blueprintId: z.string().describe('The blueprint ID (UUID)') },
+    async (args) => handleDownloadBlueprint(client, args)
   );
 
   // ─── Resources ──────────────────────────────────────────────────────

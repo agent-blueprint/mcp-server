@@ -4,6 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { loadConfig } from './config.js';
 import { createServer } from './server.js';
+import { parseDownloadArgs, runDownload } from './download.js';
 
 function parseArgs(args: string[]): { token?: string } {
   const tokenIdx = args.indexOf('--token');
@@ -14,7 +15,25 @@ function parseArgs(args: string[]): { token?: string } {
 }
 
 async function main() {
-  const { token } = parseArgs(process.argv.slice(2));
+  const rawArgs = process.argv.slice(2);
+
+  // Route to download subcommand
+  if (rawArgs[0] === 'download') {
+    const subArgs = rawArgs.slice(1);
+    const { token } = parseArgs(subArgs);
+    try {
+      const config = loadConfig(token);
+      const downloadArgs = parseDownloadArgs(subArgs);
+      await runDownload(config, downloadArgs);
+    } catch (err) {
+      console.error((err as Error).message);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // Default: MCP stdio mode
+  const { token } = parseArgs(rawArgs);
 
   try {
     const config = loadConfig(token);
