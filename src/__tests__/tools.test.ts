@@ -132,6 +132,42 @@ describe('Tool handlers', () => {
     expect(parsed.enhancedDigitalTeam).toBeUndefined();
   });
 
+  it('handleGetBlueprint falls back to instructions.role when top-level role is missing', async () => {
+    const blueprintData = {
+      id: 'bp-2',
+      version: 1,
+      lifecycleStatus: 'generated',
+      useCaseId: null,
+      createdAt: '',
+      updatedAt: '',
+      data: {
+        title: 'Fallback Test',
+        enhancedDigitalTeam: [
+          {
+            name: 'Orchestrator',
+            agentRole: 'Manager',
+            instructions: { role: 'Coordinate the pipeline end-to-end' },
+          },
+          {
+            name: 'Scanner',
+            agentRole: 'Worker',
+            // no role, no instructions — should fall back to ''
+          },
+        ],
+      },
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: blueprintData, timestamp: '' }),
+    }));
+
+    const result = await handleGetBlueprint(client, { blueprintId: 'bp-2' });
+    const parsed = JSON.parse(result.content[0].text);
+
+    expect(parsed.agents[0].role).toBe('Coordinate the pipeline end-to-end');
+    expect(parsed.agents[1].role).toBe('');
+  });
+
   it('handleGetBusinessCase returns summary (not full data)', async () => {
     const bcData = {
       id: 'bc-1',

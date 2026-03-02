@@ -13,7 +13,7 @@ function summarizeBlueprint(blueprint: BlueprintDetail): Record<string, unknown>
   const team = Array.isArray(data.enhancedDigitalTeam) ? data.enhancedDigitalTeam : [];
   const agents = team.map((agent: Record<string, unknown>, i: number) => ({
     name: agent.name || `Agent ${i + 1}`,
-    role: agent.role || '',
+    role: agent.role || (agent.instructions as Record<string, unknown>)?.role || '',
     type: agent.agentRole || agent.orchestrationRole || agent.type || 'Worker',
     supervisionLevel: agent.supervisionLevel || 'Supervised',
   }));
