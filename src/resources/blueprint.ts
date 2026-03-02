@@ -25,8 +25,11 @@ export async function readBlueprint(client: AgentBlueprintClient, id: string) {
       md += `## Agents (${team.length})\n\n`;
       for (const agent of team) {
         md += `### ${agent.name ?? 'Unnamed Agent'}\n`;
-        if (agent.role) md += `**Role:** ${agent.role}\n`;
-        if (agent.description) md += `${agent.description}\n`;
+        const instr = (agent.instructions ?? {}) as Record<string, unknown>;
+        const role = agent.role || instr.role || '';
+        const desc = agent.description || instr.description || '';
+        if (role) md += `**Role:** ${role}\n`;
+        if (desc) md += `${desc}\n`;
         md += '\n';
       }
     }
