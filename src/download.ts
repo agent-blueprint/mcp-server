@@ -80,11 +80,12 @@ async function downloadBlueprint(
   console.error(`Fetching blueprint ${blueprintId}...`);
 
   // Fetch all data in parallel
-  const [blueprint, businessCase, implementationPlan, useCase] = await Promise.all([
+  const [blueprint, businessCase, implementationPlan, useCase, businessProfile] = await Promise.all([
     client.getBlueprint(blueprintId),
     client.getBusinessCase(blueprintId).catch(() => null),
     client.getImplementationPlan(blueprintId).catch(() => null),
     client.getUseCase(blueprintId).catch(() => null),
+    client.getBusinessProfile().catch(() => null),
   ]);
 
   const title = (blueprint.data as Record<string, unknown>).title as string
@@ -98,6 +99,7 @@ async function downloadBlueprint(
     businessCaseData: businessCase?.data,
     implementationPlanData: implementationPlan?.data,
     useCaseData: useCase as Record<string, unknown> | undefined,
+    businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
   };
 
   // Render

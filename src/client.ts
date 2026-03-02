@@ -119,6 +119,7 @@ export interface ImplementationSpecResponse {
     hasBusinessCase: boolean;
     hasImplementationPlan: boolean;
     hasUseCase: boolean;
+    hasBusinessProfile: boolean;
     referenceFileCount: number;
     totalFileCount: number;
   };

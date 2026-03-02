@@ -9,11 +9,12 @@ export async function handleDownloadBlueprint(
 ) {
   try {
     // Fetch all data in parallel
-    const [blueprint, businessCase, implementationPlan, useCase] = await Promise.all([
+    const [blueprint, businessCase, implementationPlan, useCase, businessProfile] = await Promise.all([
       client.getBlueprint(args.blueprintId),
       client.getBusinessCase(args.blueprintId).catch(() => null),
       client.getImplementationPlan(args.blueprintId).catch(() => null),
       client.getUseCase(args.blueprintId).catch(() => null),
+      client.getBusinessProfile().catch(() => null),
     ]);
 
     const bpData = blueprint.data as Record<string, unknown>;
@@ -28,6 +29,7 @@ export async function handleDownloadBlueprint(
       businessCaseData: businessCase?.data,
       implementationPlanData: implementationPlan?.data,
       useCaseData: useCase as Record<string, unknown> | undefined,
+      businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
     };
 
     const files = renderSkillDirectory(input);

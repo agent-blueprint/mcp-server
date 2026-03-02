@@ -13,6 +13,7 @@ export interface SkillRenderInput {
   businessCaseData?: Record<string, unknown>;
   implementationPlanData?: Record<string, unknown>;
   useCaseData?: Record<string, unknown>;
+  businessProfileData?: Record<string, unknown>;
 }
 
 // =============================================================================
@@ -364,6 +365,197 @@ function buildBusinessContext(input: SkillRenderInput): string {
   return lines.join('\n');
 }
 
+function buildOrganizationContext(input: SkillRenderInput): string {
+  const bp = input.businessProfileData;
+  const lines: string[] = ['# Organization Context', ''];
+
+  if (!bp) {
+    lines.push('_No business profile data available. Create a Business Profile to enrich this section._', '');
+    return lines.join('\n');
+  }
+
+  // Company overview
+  const companyName = str(bp.companyName);
+  if (companyName) {
+    lines.push(`## ${companyName}`, '');
+  }
+  if (str(bp.description)) lines.push(str(bp.description), '');
+
+  // Industry & scale
+  if (str(bp.industry) || str(bp.size) || str(bp.revenue)) {
+    lines.push('## Industry & Scale', '');
+    if (str(bp.industry)) lines.push(`- **Industry:** ${str(bp.industry)}`);
+    if (str(bp.size)) lines.push(`- **Company size:** ${str(bp.size)}`);
+    if (str(bp.revenue)) lines.push(`- **Revenue:** ${str(bp.revenue)}`);
+    if (str(bp.currency) && str(bp.currency) !== 'USD') lines.push(`- **Currency:** ${str(bp.currency)}`);
+    lines.push('');
+  }
+
+  // Technology profile
+  const tech = rec(bp.technologyProfile);
+  const systems = arr(tech.systems);
+  const dataInfra = rec(tech.dataInfrastructure);
+  const integration = rec(tech.integrationCapabilities);
+  const security = rec(tech.securityCompliance);
+
+  if (systems.length > 0 || dataInfra.databases || integration.apiMaturity) {
+    lines.push('## Technology Landscape', '');
+
+    if (systems.length > 0) {
+      lines.push('### Current Systems', '');
+      lines.push('| System | Category | Criticality |');
+      lines.push('|--------|----------|-------------|');
+      for (const sys of systems) {
+        const s = rec(sys);
+        lines.push(`| ${str(s.name)} | ${str(s.category)} | ${str(s.criticality)} |`);
+      }
+      lines.push('');
+    }
+
+    if (str(dataInfra.databases) || str(dataInfra.cloudProvider)) {
+      lines.push('### Data Infrastructure', '');
+      if (str(dataInfra.cloudProvider)) lines.push(`- **Cloud provider:** ${str(dataInfra.cloudProvider)}`);
+      if (str(dataInfra.databases)) lines.push(`- **Databases:** ${str(dataInfra.databases)}`);
+      if (str(dataInfra.dataVolume)) lines.push(`- **Data volume:** ${str(dataInfra.dataVolume)}`);
+      if (str(dataInfra.dataQuality)) lines.push(`- **Data quality:** ${str(dataInfra.dataQuality)}`);
+      lines.push('');
+    }
+
+    if (str(integration.apiMaturity) || str(integration.integrationPatterns)) {
+      lines.push('### Integration Capabilities', '');
+      if (str(integration.apiMaturity)) lines.push(`- **API maturity:** ${str(integration.apiMaturity)}`);
+      if (str(integration.integrationPatterns)) lines.push(`- **Integration patterns:** ${str(integration.integrationPatterns)}`);
+      if (str(integration.middlewarePlatforms)) lines.push(`- **Middleware:** ${str(integration.middlewarePlatforms)}`);
+      lines.push('');
+    }
+
+    if (str(security.complianceFrameworks) || str(security.dataPrivacy)) {
+      lines.push('### Security & Compliance', '');
+      if (str(security.complianceFrameworks)) lines.push(`- **Compliance frameworks:** ${str(security.complianceFrameworks)}`);
+      if (str(security.dataPrivacy)) lines.push(`- **Data privacy:** ${str(security.dataPrivacy)}`);
+      if (str(security.accessControl)) lines.push(`- **Access control:** ${str(security.accessControl)}`);
+      lines.push('');
+    }
+  }
+
+  // Business operations
+  const ops = rec(bp.businessOperations);
+  const keyProcesses = arr(ops.keyProcesses);
+  const painPoints = arr(ops.painPoints);
+  const stakeholders = arr(ops.stakeholders);
+
+  if (keyProcesses.length > 0 || painPoints.length > 0) {
+    lines.push('## Business Operations', '');
+
+    if (keyProcesses.length > 0) {
+      lines.push('### Key Processes', '');
+      for (const proc of keyProcesses) {
+        const p = rec(proc);
+        const name = str(p.name) || str(p.processName);
+        const volume = str(p.volume) || str(p.transactionVolume);
+        if (name) {
+          lines.push(`- **${name}**${volume ? ` (${volume})` : ''}`);
+          if (str(p.frequency)) lines.push(`  - Frequency: ${str(p.frequency)}`);
+          if (str(p.automationLevel)) lines.push(`  - Automation level: ${str(p.automationLevel)}`);
+        }
+      }
+      lines.push('');
+    }
+
+    if (painPoints.length > 0) {
+      lines.push('### Operational Pain Points', '');
+      for (const pp of painPoints) {
+        if (typeof pp === 'string') {
+          lines.push(`- ${pp}`);
+        } else {
+          const p = rec(pp);
+          const desc = str(p.description) || str(p.painPoint);
+          if (desc) lines.push(`- ${desc}${str(p.severity) ? ` _(${str(p.severity)})_` : ''}`);
+        }
+      }
+      lines.push('');
+    }
+
+    if (stakeholders.length > 0) {
+      lines.push('### Key Stakeholders', '');
+      for (const sh of stakeholders) {
+        const s = rec(sh);
+        const role = str(s.role) || str(s.title);
+        const name = str(s.name);
+        if (role || name) lines.push(`- **${role || name}**${name && role ? ` — ${name}` : ''}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // Organizational capabilities
+  const caps = rec(bp.organizationalCapabilities);
+  const technicalTeam = rec(caps.technicalTeam);
+  const currentAutomation = rec(caps.currentAutomation);
+
+  if (str(technicalTeam.size) || str(currentAutomation.level)) {
+    lines.push('## Organizational Capabilities', '');
+    if (str(technicalTeam.size)) lines.push(`- **Technical team size:** ${str(technicalTeam.size)}`);
+    if (str(technicalTeam.aiExperience)) lines.push(`- **AI experience:** ${str(technicalTeam.aiExperience)}`);
+    if (str(technicalTeam.developmentMethodology)) lines.push(`- **Methodology:** ${str(technicalTeam.developmentMethodology)}`);
+    if (str(currentAutomation.level)) lines.push(`- **Current automation level:** ${str(currentAutomation.level)}`);
+    if (str(currentAutomation.tools)) lines.push(`- **Automation tools:** ${str(currentAutomation.tools)}`);
+    lines.push('');
+  }
+
+  // Constraints
+  const constraints = rec(bp.constraintsProfile);
+  const budget = rec(constraints.budget);
+  const timeline = rec(constraints.timeline);
+  const technical = rec(constraints.technical);
+  const regulatory = rec(constraints.regulatory);
+
+  if (str(budget.totalBudget) || str(timeline.deadline) || str(regulatory.requirements)) {
+    lines.push('## Constraints', '');
+    if (str(budget.totalBudget)) lines.push(`- **Budget:** ${str(budget.totalBudget)}`);
+    if (str(budget.annualBudget)) lines.push(`- **Annual budget:** ${str(budget.annualBudget)}`);
+    if (str(timeline.deadline)) lines.push(`- **Deadline:** ${str(timeline.deadline)}`);
+    if (str(timeline.preferredTimeline)) lines.push(`- **Preferred timeline:** ${str(timeline.preferredTimeline)}`);
+    if (str(technical.limitations)) lines.push(`- **Technical limitations:** ${str(technical.limitations)}`);
+    if (str(regulatory.requirements)) lines.push(`- **Regulatory:** ${str(regulatory.requirements)}`);
+    if (str(regulatory.industrySpecific)) lines.push(`- **Industry-specific:** ${str(regulatory.industrySpecific)}`);
+    lines.push('');
+  }
+
+  // Strategic initiatives
+  const initiatives = arr(bp.strategicInitiatives);
+  if (initiatives.length > 0) {
+    lines.push('## Strategic Initiatives', '');
+    for (const init of initiatives) {
+      const i = rec(init);
+      const title = str(i.title);
+      if (title) {
+        lines.push(`### ${title}`, '');
+        if (str(i.description)) lines.push(str(i.description), '');
+        if (str(i.priority)) lines.push(`- **Priority:** ${str(i.priority)}`);
+        if (str(i.status)) lines.push(`- **Status:** ${str(i.status)}`);
+        if (str(i.budget)) lines.push(`- **Budget:** ${str(i.budget)}`);
+        if (str(i.timeline)) lines.push(`- **Timeline:** ${str(i.timeline)}`);
+        const outcomes = arr(i.expectedOutcomes);
+        if (outcomes.length > 0) {
+          lines.push('- **Expected outcomes:**');
+          for (const o of outcomes) lines.push(`  - ${o}`);
+        }
+        lines.push('');
+      }
+    }
+  }
+
+  // AI readiness
+  if (bp.aiReadinessScore !== null && bp.aiReadinessScore !== undefined) {
+    lines.push('## AI Readiness', '');
+    lines.push(`- **Score:** ${bp.aiReadinessScore}/100`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
 function buildAgentSpecifications(input: SkillRenderInput): string {
   const bp = input.blueprintData;
   const team = getTeam(bp);
@@ -574,6 +766,25 @@ function buildFinancialCase(input: SkillRenderInput): string {
     if (str(tangible.processEfficiency)) lines.push(`- **Process efficiency:** ${str(tangible.processEfficiency)}`);
     if (str(tangible.timeToMarket)) lines.push(`- **Time to market:** ${str(tangible.timeToMarket)}`);
     lines.push('');
+  }
+
+  // Recommendation
+  const recommendation = rec(bc.recommendation);
+  if (str(recommendation.summary) || str(recommendation.decisionRequest)) {
+    lines.push('## Recommendation', '');
+    if (str(recommendation.summary)) lines.push(str(recommendation.summary), '');
+    if (str(recommendation.decisionRequest)) {
+      lines.push(`**Decision request:** ${str(recommendation.decisionRequest)}`, '');
+    }
+    const immediateActions = arr(recommendation.immediateActions);
+    if (immediateActions.length > 0) {
+      lines.push('**Immediate actions upon approval:**', '');
+      for (const action of immediateActions) lines.push(`1. ${action}`);
+      lines.push('');
+    }
+    if (str(recommendation.blueprintImplementationRef)) {
+      lines.push(`> ${str(recommendation.blueprintImplementationRef)}`, '');
+    }
   }
 
   return lines.join('\n');
@@ -965,6 +1176,7 @@ fi
 echo ""
 echo "--- Optional Files ---"
 check_optional "references/business-context.md"
+check_optional "references/organization-context.md"
 check_optional "references/financial-case.md"
 check_optional "references/implementation-roadmap.md"
 check_optional "references/guardrails-and-governance.md"
@@ -1002,6 +1214,7 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
 
   // Reference files
   files.set('references/business-context.md', buildBusinessContext(input));
+  files.set('references/organization-context.md', buildOrganizationContext(input));
   files.set('references/agent-specifications.md', buildAgentSpecifications(input));
   files.set('references/financial-case.md', buildFinancialCase(input));
   files.set('references/implementation-roadmap.md', buildImplementationRoadmap(input));
