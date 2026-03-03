@@ -48,6 +48,16 @@ function numStr(val: unknown): string {
   return '';
 }
 
+/** Checks if a string value is a placeholder/garbage value that shouldn't be rendered */
+function isPlaceholder(val: string): boolean {
+  return ['—', '–', '-', 'N/A', 'n/a', 'TBD', 'null', 'undefined', 'none'].includes(val.trim());
+}
+
+/** Strips a trailing unit suffix to prevent double-units (e.g. "3.6 months" + " months") */
+function stripTrailingUnit(val: string, unit: string): string {
+  return val.replace(new RegExp(`\\s*${unit}\\s*$`, 'i'), '');
+}
+
 /** Joins string arrays with separator; returns '' for non-arrays */
 function arrStr(val: unknown, sep = ', '): string {
   return Array.isArray(val) ? val.filter((v) => typeof v === 'string').join(sep) : '';
@@ -272,9 +282,9 @@ function buildSkillBody(input: SkillRenderInput): string {
   if (bc) {
     const benefits = rec(bc.benefits);
     const quantifiedROI = rec(benefits.quantifiedROI);
-    if (str(quantifiedROI.roi)) lines.push(`- **ROI:** ${str(quantifiedROI.roi)}`);
-    if (str(quantifiedROI.npv)) lines.push(`- **NPV:** ${str(quantifiedROI.npv)}`);
-    if (str(quantifiedROI.paybackPeriod)) lines.push(`- **Payback:** ${str(quantifiedROI.paybackPeriod)}`);
+    if (str(quantifiedROI.roi) && !isPlaceholder(str(quantifiedROI.roi))) lines.push(`- **ROI:** ${str(quantifiedROI.roi)}`);
+    if (str(quantifiedROI.npv) && !isPlaceholder(str(quantifiedROI.npv))) lines.push(`- **NPV:** ${str(quantifiedROI.npv)}`);
+    if (str(quantifiedROI.paybackPeriod) && !isPlaceholder(str(quantifiedROI.paybackPeriod))) lines.push(`- **Payback:** ${str(quantifiedROI.paybackPeriod)}`);
 
     const pilotROI = rec(quantifiedROI.pilotROI);
     const skillPilotCapex = str(rec(pilotROI.pilotCapex).value);
@@ -483,8 +493,8 @@ function buildOrganizationContext(input: SkillRenderInput): string {
       if (apiReadiness) lines.push(`- **API readiness:** ${apiReadiness}`);
       if (currentIntegrations) lines.push(`- **Current integrations:** ${currentIntegrations}`);
       else if (str(integration.integrationPatterns)) lines.push(`- **Integration patterns:** ${str(integration.integrationPatterns)}`);
-      if (str(integration.integrationPlatform)) lines.push(`- **Integration platform:** ${str(integration.integrationPlatform)}`);
-      else if (str(integration.middlewarePlatforms)) lines.push(`- **Middleware:** ${str(integration.middlewarePlatforms)}`);
+      if (str(integration.integrationPlatform) && !isPlaceholder(str(integration.integrationPlatform))) lines.push(`- **Integration platform:** ${str(integration.integrationPlatform)}`);
+      else if (str(integration.middlewarePlatforms) && !isPlaceholder(str(integration.middlewarePlatforms))) lines.push(`- **Middleware:** ${str(integration.middlewarePlatforms)}`);
       lines.push('');
     }
 
@@ -677,7 +687,7 @@ function buildAgentSpecifications(input: SkillRenderInput): string {
         const t = rec(tool);
         const tName = str(t.name);
         const tCat = str(t.toolCategory) || str(t.type) || '';
-        const tDesc = str(t.description).replace(/\|/g, '\\|').slice(0, 100);
+        const tDesc = str(t.description).replace(/\|/g, '\\|');
         lines.push(`| ${tName} | ${tCat} | ${tDesc} |`);
       }
       lines.push('');
@@ -701,10 +711,11 @@ function buildAgentSpecifications(input: SkillRenderInput): string {
     }
 
     const risk = rec(agent.riskAssessment);
-    if (str(risk.level)) {
+    if (str(risk.level) && !isPlaceholder(str(risk.level))) {
       lines.push('### Risk Assessment', '');
       lines.push(`- **Level:** ${str(risk.level)}`);
-      lines.push(`- **Impact:** ${str(risk.impact)}`);
+      const riskImpact = str(risk.impact);
+      if (riskImpact && !isPlaceholder(riskImpact)) lines.push(`- **Impact:** ${riskImpact}`);
       const controls = arr(risk.controls);
       if (controls.length > 0) {
         lines.push('- **Controls:**');
@@ -771,11 +782,14 @@ function buildFinancialCase(input: SkillRenderInput): string {
   const benefits = rec(bc.benefits);
   const qROI = rec(benefits.quantifiedROI);
 
-  if (str(qROI.roi) || str(qROI.npv) || str(qROI.paybackPeriod)) {
+  const roiVal = str(qROI.roi);
+  const npvVal = str(qROI.npv);
+  const paybackVal = str(qROI.paybackPeriod);
+  if ((roiVal && !isPlaceholder(roiVal)) || (npvVal && !isPlaceholder(npvVal)) || (paybackVal && !isPlaceholder(paybackVal))) {
     lines.push('## Return on Investment', '');
-    if (str(qROI.roi)) lines.push(`- **ROI:** ${str(qROI.roi)}`);
-    if (str(qROI.npv)) lines.push(`- **NPV:** ${str(qROI.npv)}`);
-    if (str(qROI.paybackPeriod)) lines.push(`- **Payback period:** ${str(qROI.paybackPeriod)}`);
+    if (roiVal && !isPlaceholder(roiVal)) lines.push(`- **ROI:** ${roiVal}`);
+    if (npvVal && !isPlaceholder(npvVal)) lines.push(`- **NPV:** ${npvVal}`);
+    if (paybackVal && !isPlaceholder(paybackVal)) lines.push(`- **Payback period:** ${paybackVal}`);
     lines.push('');
   }
 
@@ -822,7 +836,7 @@ function buildFinancialCase(input: SkillRenderInput): string {
     if (pilotOpex) lines.push(`- **Pilot opex:** ${pilotOpex}`);
     if (pilotSavings) lines.push(`- **Pilot annual savings:** ${pilotSavings}`);
     if (pilotYear1Net) lines.push(`- **Pilot Year 1 net:** ${pilotYear1Net}`);
-    if (pilotPayback) lines.push(`- **Payback:** ${pilotPayback} months`);
+    if (pilotPayback) lines.push(`- **Payback:** ${stripTrailingUnit(pilotPayback, 'months')} months`);
     lines.push('');
   }
 
@@ -836,7 +850,7 @@ function buildFinancialCase(input: SkillRenderInput): string {
       const s = rec(sensitivity[key]);
       const roi = numStr(s.roiPercentage);
       const payback = numStr(s.paybackMonths);
-      lines.push(`| ${label} | ${roi ? roi + '%' : ''} | ${payback ? payback + ' months' : ''} | ${str(s.annualSavings)} |`);
+      lines.push(`| ${label} | ${roi ? stripTrailingUnit(roi, '%') + '%' : ''} | ${payback ? stripTrailingUnit(payback, 'months') + ' months' : ''} | ${str(s.annualSavings)} |`);
     }
     lines.push('');
   }
@@ -1175,8 +1189,12 @@ function buildGuardrailsAndGovernance(input: SkillRenderInput): string {
       }
 
       const risk = rec(agent.riskAssessment);
-      if (str(risk.level)) {
-        lines.push(`**Risk:** ${str(risk.level)} — ${str(risk.impact)}`);
+      if (str(risk.level) && !isPlaceholder(str(risk.level))) {
+        const impactStr = str(risk.impact);
+        const riskLine = impactStr && !isPlaceholder(impactStr)
+          ? `**Risk:** ${str(risk.level)} — ${impactStr}`
+          : `**Risk:** ${str(risk.level)}`;
+        lines.push(riskLine);
         lines.push('');
       }
     }
