@@ -41,6 +41,18 @@ function rec(val: unknown): Record<string, unknown> {
   return val && typeof val === 'object' && !Array.isArray(val) ? (val as Record<string, unknown>) : {};
 }
 
+/** Returns string representation for numbers, passes through strings, '' otherwise */
+function numStr(val: unknown): string {
+  if (typeof val === 'number') return String(val);
+  if (typeof val === 'string') return val;
+  return '';
+}
+
+/** Joins string arrays with separator; returns '' for non-arrays */
+function arrStr(val: unknown, sep = ', '): string {
+  return Array.isArray(val) ? val.filter((v) => typeof v === 'string').join(sep) : '';
+}
+
 function getPlatformName(bp: Record<string, unknown>): string {
   const pr = rec(bp.platformRecommendation);
   const pp = rec(pr.primaryPlatform);
@@ -156,66 +168,103 @@ function buildSkillBody(input: SkillRenderInput): string {
   lines.push('');
   lines.push('> Full agent specifications in `references/agent-specifications.md`', '');
 
-  // Phase 1: Pilot
-  lines.push('## Phase 1: Pilot', '');
-  const phases = arr(bp.phases);
-  const pilotPhase = phases.find(
-    (p: any) => str(p?.name).toLowerCase().includes('pilot') || str(p?.name).toLowerCase().includes('phase 1')
-  );
-  if (pilotPhase) {
-    const p = rec(pilotPhase);
-    if (str(p.phaseGoal)) lines.push(`**Goal:** ${str(p.phaseGoal)}`, '');
-    if (p.durationWeeks) lines.push(`**Duration:** ${p.durationWeeks} weeks`);
-    if (str(p.phaseCost)) lines.push(`**Cost target:** ${str(p.phaseCost)}`);
-    lines.push('');
+  // Phase rendering — prefer implementation plan epics when available
+  const ipEpics = input.implementationPlanData ? arr(rec(input.implementationPlanData).epics) : [];
+  if (ipEpics.length > 0) {
+    const pilotEpics = ipEpics.filter((e: any) => str(rec(e).phase).toLowerCase().includes('pilot'));
+    const fullEpics = ipEpics.filter((e: any) => !str(rec(e).phase).toLowerCase().includes('pilot'));
 
-    const workstreams = arr(p.workstreams);
-    if (workstreams.length > 0) {
-      lines.push('**Pilot workstreams:**', '');
-      for (const ws of workstreams) {
-        const w = rec(ws);
-        lines.push(`- ${str(w.title)}`);
+    lines.push('## Phase 1: Pilot', '');
+    if (pilotEpics.length > 0) {
+      const seen = new Set<string>();
+      for (const epic of pilotEpics) {
+        const e = rec(epic);
+        const name = str(e.name);
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          lines.push(`- **${name}**${str(e.estimatedDuration) ? ` (${str(e.estimatedDuration)})` : ''}`);
+        }
       }
       lines.push('');
+    } else {
+      lines.push('_No pilot epics defined. See `references/implementation-roadmap.md` for phasing._', '');
     }
 
-    const gate = rec(p.decisionGate);
-    if (gate.criteria) {
-      lines.push('**Decision gate criteria:**', '');
-      for (const c of arr(gate.criteria)) {
-        const cr = rec(c);
-        const label = str(cr.name) || str(cr.criterion) || str(cr.metric) || str(cr.description) || 'Unnamed criterion';
-        lines.push(`- ${label}: ${str(cr.target) || str(cr.threshold)}`);
+    lines.push('## Phase 2: Full Implementation', '');
+    if (fullEpics.length > 0) {
+      const seen = new Set<string>();
+      for (const epic of fullEpics) {
+        const e = rec(epic);
+        const name = str(e.name);
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          lines.push(`- **${name}**${str(e.estimatedDuration) ? ` (${str(e.estimatedDuration)})` : ''}`);
+        }
       }
       lines.push('');
-    }
-
-    const exitCriteria = arr(p.exitCriteria);
-    if (exitCriteria.length > 0) {
-      lines.push('**Exit criteria:**', '');
-      for (const c of exitCriteria) lines.push(`- ${c}`);
-      lines.push('');
+    } else {
+      lines.push('_See `references/implementation-roadmap.md` for full rollout plan._', '');
     }
   } else {
-    lines.push('_No pilot phase defined. See `references/implementation-roadmap.md` for phasing._', '');
-  }
-
-  // Phase 2: Full Implementation
-  lines.push('## Phase 2: Full Implementation', '');
-  const fullPhases = phases.filter(
-    (p: any) => !str(p?.name).toLowerCase().includes('pilot') && !str(p?.name).toLowerCase().includes('phase 1')
-  );
-  if (fullPhases.length > 0) {
-    for (const phase of fullPhases) {
-      const p = rec(phase);
-      lines.push(`### ${str(p.name)}`, '');
-      if (str(p.phaseGoal)) lines.push(str(p.phaseGoal), '');
+    lines.push('## Phase 1: Pilot', '');
+    const phases = arr(bp.phases);
+    const pilotPhase = phases.find(
+      (p: any) => str(p?.name).toLowerCase().includes('pilot') || str(p?.name).toLowerCase().includes('phase 1')
+    );
+    if (pilotPhase) {
+      const p = rec(pilotPhase);
+      if (str(p.phaseGoal)) lines.push(`**Goal:** ${str(p.phaseGoal)}`, '');
       if (p.durationWeeks) lines.push(`**Duration:** ${p.durationWeeks} weeks`);
-      if (str(p.phaseCost)) lines.push(`**Cost:** ${str(p.phaseCost)}`);
+      if (str(p.phaseCost)) lines.push(`**Cost target:** ${str(p.phaseCost)}`);
       lines.push('');
+
+      const workstreams = arr(p.workstreams);
+      if (workstreams.length > 0) {
+        lines.push('**Pilot workstreams:**', '');
+        for (const ws of workstreams) {
+          const w = rec(ws);
+          lines.push(`- ${str(w.title)}`);
+        }
+        lines.push('');
+      }
+
+      const gate = rec(p.decisionGate);
+      if (gate.criteria) {
+        lines.push('**Decision gate criteria:**', '');
+        for (const c of arr(gate.criteria)) {
+          const cr = rec(c);
+          const label = str(cr.name) || str(cr.criterion) || str(cr.metric) || str(cr.description) || 'Unnamed criterion';
+          lines.push(`- ${label}: ${str(cr.target) || str(cr.threshold)}`);
+        }
+        lines.push('');
+      }
+
+      const exitCriteria = arr(p.exitCriteria);
+      if (exitCriteria.length > 0) {
+        lines.push('**Exit criteria:**', '');
+        for (const c of exitCriteria) lines.push(`- ${c}`);
+        lines.push('');
+      }
+    } else {
+      lines.push('_No pilot phase defined. See `references/implementation-roadmap.md` for phasing._', '');
     }
-  } else {
-    lines.push('_See `references/implementation-roadmap.md` for full rollout plan._', '');
+
+    lines.push('## Phase 2: Full Implementation', '');
+    const fullPhases = phases.filter(
+      (p: any) => !str(p?.name).toLowerCase().includes('pilot') && !str(p?.name).toLowerCase().includes('phase 1')
+    );
+    if (fullPhases.length > 0) {
+      for (const phase of fullPhases) {
+        const p = rec(phase);
+        lines.push(`### ${str(p.name)}`, '');
+        if (str(p.phaseGoal)) lines.push(str(p.phaseGoal), '');
+        if (p.durationWeeks) lines.push(`**Duration:** ${p.durationWeeks} weeks`);
+        if (str(p.phaseCost)) lines.push(`**Cost:** ${str(p.phaseCost)}`);
+        lines.push('');
+      }
+    } else {
+      lines.push('_See `references/implementation-roadmap.md` for full rollout plan._', '');
+    }
   }
 
   // Financial Summary
@@ -228,12 +277,15 @@ function buildSkillBody(input: SkillRenderInput): string {
     if (str(quantifiedROI.paybackPeriod)) lines.push(`- **Payback:** ${str(quantifiedROI.paybackPeriod)}`);
 
     const pilotROI = rec(quantifiedROI.pilotROI);
-    if (str(pilotROI.pilotCost) || str(pilotROI.pilotBenefit)) {
+    const skillPilotCapex = str(rec(pilotROI.pilotCapex).value);
+    const skillPilotSavings = str(rec(pilotROI.pilotAnnualSavings).value);
+    const skillPilotYear1Net = str(rec(pilotROI.pilotYear1Net).value);
+    if (skillPilotCapex || skillPilotSavings) {
       lines.push('');
       lines.push('**Pilot economics:**');
-      if (str(pilotROI.pilotCost)) lines.push(`- Pilot cost: ${str(pilotROI.pilotCost)}`);
-      if (str(pilotROI.pilotBenefit)) lines.push(`- Pilot benefit: ${str(pilotROI.pilotBenefit)}`);
-      if (str(pilotROI.pilotROI)) lines.push(`- Pilot ROI: ${str(pilotROI.pilotROI)}`);
+      if (skillPilotCapex) lines.push(`- Pilot capex: ${skillPilotCapex}`);
+      if (skillPilotSavings) lines.push(`- Pilot annual savings: ${skillPilotSavings}`);
+      if (skillPilotYear1Net) lines.push(`- Pilot Year 1 net: ${skillPilotYear1Net}`);
     }
     lines.push('');
     lines.push('> Full financial analysis in `references/financial-case.md`', '');
@@ -398,7 +450,7 @@ function buildOrganizationContext(input: SkillRenderInput): string {
   const integration = rec(tech.integrationCapabilities);
   const security = rec(tech.securityCompliance);
 
-  if (systems.length > 0 || dataInfra.databases || integration.apiMaturity) {
+  if (systems.length > 0 || dataInfra.cloudPlatforms || dataInfra.dataWarehouseExists !== undefined || integration.apiReadiness || integration.apiMaturity) {
     lines.push('## Technology Landscape', '');
 
     if (systems.length > 0) {
@@ -407,33 +459,43 @@ function buildOrganizationContext(input: SkillRenderInput): string {
       lines.push('|--------|----------|-------------|');
       for (const sys of systems) {
         const s = rec(sys);
-        lines.push(`| ${str(s.name)} | ${str(s.category)} | ${str(s.criticality)} |`);
+        lines.push(`| ${str(s.name)} | ${str(s.category)} | ${str(s.criticality) || str(s.businessCriticality)} |`);
       }
       lines.push('');
     }
 
-    if (str(dataInfra.databases) || str(dataInfra.cloudProvider)) {
+    const cloudPlatforms = arrStr(dataInfra.cloudPlatforms);
+    if (cloudPlatforms || dataInfra.dataWarehouseExists !== undefined || str(dataInfra.cloudProvider)) {
       lines.push('### Data Infrastructure', '');
-      if (str(dataInfra.cloudProvider)) lines.push(`- **Cloud provider:** ${str(dataInfra.cloudProvider)}`);
-      if (str(dataInfra.databases)) lines.push(`- **Databases:** ${str(dataInfra.databases)}`);
-      if (str(dataInfra.dataVolume)) lines.push(`- **Data volume:** ${str(dataInfra.dataVolume)}`);
-      if (str(dataInfra.dataQuality)) lines.push(`- **Data quality:** ${str(dataInfra.dataQuality)}`);
+      if (cloudPlatforms) lines.push(`- **Cloud platforms:** ${cloudPlatforms}`);
+      else if (str(dataInfra.cloudProvider)) lines.push(`- **Cloud provider:** ${str(dataInfra.cloudProvider)}`);
+      if (dataInfra.dataWarehouseExists !== undefined) lines.push(`- **Data warehouse:** ${dataInfra.dataWarehouseExists ? 'Yes' : 'No'}`);
+      if (dataInfra.dataLakeExists !== undefined) lines.push(`- **Data lake:** ${dataInfra.dataLakeExists ? 'Yes' : 'No'}`);
+      if (str(dataInfra.dataGovernanceMaturity)) lines.push(`- **Data governance maturity:** ${str(dataInfra.dataGovernanceMaturity)}`);
+      else if (str(dataInfra.dataQuality)) lines.push(`- **Data quality:** ${str(dataInfra.dataQuality)}`);
       lines.push('');
     }
 
-    if (str(integration.apiMaturity) || str(integration.integrationPatterns)) {
+    const apiReadiness = str(integration.apiReadiness) || str(integration.apiMaturity);
+    const currentIntegrations = arrStr(integration.currentIntegrations);
+    if (apiReadiness || currentIntegrations || str(integration.integrationPatterns)) {
       lines.push('### Integration Capabilities', '');
-      if (str(integration.apiMaturity)) lines.push(`- **API maturity:** ${str(integration.apiMaturity)}`);
-      if (str(integration.integrationPatterns)) lines.push(`- **Integration patterns:** ${str(integration.integrationPatterns)}`);
-      if (str(integration.middlewarePlatforms)) lines.push(`- **Middleware:** ${str(integration.middlewarePlatforms)}`);
+      if (apiReadiness) lines.push(`- **API readiness:** ${apiReadiness}`);
+      if (currentIntegrations) lines.push(`- **Current integrations:** ${currentIntegrations}`);
+      else if (str(integration.integrationPatterns)) lines.push(`- **Integration patterns:** ${str(integration.integrationPatterns)}`);
+      if (str(integration.integrationPlatform)) lines.push(`- **Integration platform:** ${str(integration.integrationPlatform)}`);
+      else if (str(integration.middlewarePlatforms)) lines.push(`- **Middleware:** ${str(integration.middlewarePlatforms)}`);
       lines.push('');
     }
 
-    if (str(security.complianceFrameworks) || str(security.dataPrivacy)) {
+    const complianceCerts = arrStr(security.complianceCertifications);
+    const privacyMeasures = arrStr(security.dataPrivacyMeasures);
+    if (complianceCerts || privacyMeasures || str(security.complianceFrameworks) || str(security.dataPrivacy)) {
       lines.push('### Security & Compliance', '');
-      if (str(security.complianceFrameworks)) lines.push(`- **Compliance frameworks:** ${str(security.complianceFrameworks)}`);
-      if (str(security.dataPrivacy)) lines.push(`- **Data privacy:** ${str(security.dataPrivacy)}`);
-      if (str(security.accessControl)) lines.push(`- **Access control:** ${str(security.accessControl)}`);
+      if (complianceCerts) lines.push(`- **Compliance certifications:** ${complianceCerts}`);
+      else if (str(security.complianceFrameworks)) lines.push(`- **Compliance frameworks:** ${str(security.complianceFrameworks)}`);
+      if (privacyMeasures) lines.push(`- **Data privacy measures:** ${privacyMeasures}`);
+      else if (str(security.dataPrivacy)) lines.push(`- **Data privacy:** ${str(security.dataPrivacy)}`);
       lines.push('');
     }
   }
@@ -493,13 +555,17 @@ function buildOrganizationContext(input: SkillRenderInput): string {
   const technicalTeam = rec(caps.technicalTeam);
   const currentAutomation = rec(caps.currentAutomation);
 
-  if (str(technicalTeam.size) || str(currentAutomation.level)) {
+  const devCapacity = numStr(technicalTeam.developmentCapacity);
+  if (devCapacity || str(technicalTeam.size) || str(currentAutomation.level)) {
     lines.push('## Organizational Capabilities', '');
-    if (str(technicalTeam.size)) lines.push(`- **Technical team size:** ${str(technicalTeam.size)}`);
-    if (str(technicalTeam.aiExperience)) lines.push(`- **AI experience:** ${str(technicalTeam.aiExperience)}`);
-    if (str(technicalTeam.developmentMethodology)) lines.push(`- **Methodology:** ${str(technicalTeam.developmentMethodology)}`);
+    if (devCapacity) lines.push(`- **Development capacity:** ${devCapacity} FTEs`);
+    else if (str(technicalTeam.size)) lines.push(`- **Technical team size:** ${str(technicalTeam.size)}`);
+    if (str(technicalTeam.aiMlExperience)) lines.push(`- **AI/ML experience:** ${str(technicalTeam.aiMlExperience)}`);
+    else if (str(technicalTeam.aiExperience)) lines.push(`- **AI experience:** ${str(technicalTeam.aiExperience)}`);
     if (str(currentAutomation.level)) lines.push(`- **Current automation level:** ${str(currentAutomation.level)}`);
-    if (str(currentAutomation.tools)) lines.push(`- **Automation tools:** ${str(currentAutomation.tools)}`);
+    const automatedProcesses = arrStr(currentAutomation.automatedProcesses);
+    if (automatedProcesses) lines.push(`- **Automated processes:** ${automatedProcesses}`);
+    else if (str(currentAutomation.tools)) lines.push(`- **Automation tools:** ${str(currentAutomation.tools)}`);
     lines.push('');
   }
 
@@ -510,15 +576,23 @@ function buildOrganizationContext(input: SkillRenderInput): string {
   const technical = rec(constraints.technical);
   const regulatory = rec(constraints.regulatory);
 
-  if (str(budget.totalBudget) || str(timeline.deadline) || str(regulatory.requirements)) {
+  const totalBudget = str(budget.totalAiBudget) || str(budget.totalBudget);
+  const annualBudget = str(budget.annualOpexAvailable) || str(budget.annualBudget);
+  const deadlines = arrStr(timeline.criticalDeadlines);
+  const rolloutTimeline = str(timeline.fullRolloutTimeline) || str(timeline.preferredTimeline);
+  const legacyConstraints = arrStr(technical.legacySystemConstraints);
+  const regulations = arrStr(regulatory.industryRegulations);
+  if (totalBudget || deadlines || str(timeline.deadline) || regulations || str(regulatory.requirements)) {
     lines.push('## Constraints', '');
-    if (str(budget.totalBudget)) lines.push(`- **Budget:** ${str(budget.totalBudget)}`);
-    if (str(budget.annualBudget)) lines.push(`- **Annual budget:** ${str(budget.annualBudget)}`);
-    if (str(timeline.deadline)) lines.push(`- **Deadline:** ${str(timeline.deadline)}`);
-    if (str(timeline.preferredTimeline)) lines.push(`- **Preferred timeline:** ${str(timeline.preferredTimeline)}`);
-    if (str(technical.limitations)) lines.push(`- **Technical limitations:** ${str(technical.limitations)}`);
-    if (str(regulatory.requirements)) lines.push(`- **Regulatory:** ${str(regulatory.requirements)}`);
-    if (str(regulatory.industrySpecific)) lines.push(`- **Industry-specific:** ${str(regulatory.industrySpecific)}`);
+    if (totalBudget) lines.push(`- **Budget:** ${totalBudget}`);
+    if (annualBudget) lines.push(`- **Annual budget:** ${annualBudget}`);
+    if (deadlines) lines.push(`- **Critical deadlines:** ${deadlines}`);
+    else if (str(timeline.deadline)) lines.push(`- **Deadline:** ${str(timeline.deadline)}`);
+    if (rolloutTimeline) lines.push(`- **Rollout timeline:** ${rolloutTimeline}`);
+    if (legacyConstraints) lines.push(`- **Legacy system constraints:** ${legacyConstraints}`);
+    else if (str(technical.limitations)) lines.push(`- **Technical limitations:** ${str(technical.limitations)}`);
+    if (regulations) lines.push(`- **Industry regulations:** ${regulations}`);
+    else if (str(regulatory.requirements)) lines.push(`- **Regulatory:** ${str(regulatory.requirements)}`);
     lines.push('');
   }
 
@@ -565,7 +639,7 @@ function buildAgentSpecifications(input: SkillRenderInput): string {
     const name = str(agent.name);
     lines.push(`## ${name}`, '');
 
-    const role = str(agent.role);
+    const role = str(agent.role) || str(rec(agent.instructions).role);
     const type = str(agent.agentRole) || str(agent.orchestrationRole) || str(agent.type) || 'Worker';
     const supervision = str(agent.supervisionLevel) || 'Supervised';
     lines.push(`- **Role:** ${role}`);
@@ -705,47 +779,69 @@ function buildFinancialCase(input: SkillRenderInput): string {
     lines.push('');
   }
 
+  // Labor cost detail (nested object: currentStateBaseline / projectedSavings)
   const laborDetail = rec(qROI.laborCostDetail);
-  if (str(laborDetail.annualLaborCost) || str(laborDetail.avgFullyLoadedRate)) {
+  const currentBaseline = rec(laborDetail.currentStateBaseline);
+  const projectedSavings = rec(laborDetail.projectedSavings);
+  const blendedRate = str(rec(currentBaseline.blendedHourlyRate).value);
+  const totalAnnualCost = str(rec(currentBaseline.totalAnnualCost).value);
+  const totalAnnualHours = str(rec(currentBaseline.totalAnnualHours).value);
+  const costSavingsAnnual = str(rec(projectedSavings.costSavingsAnnual).value);
+  if (totalAnnualCost || blendedRate) {
     lines.push('## Labor Cost Analysis', '');
-    if (str(laborDetail.avgFullyLoadedRate)) lines.push(`- **Avg. fully-loaded rate:** ${str(laborDetail.avgFullyLoadedRate)}`);
-    if (str(laborDetail.annualLaborCost)) lines.push(`- **Annual labor cost:** ${str(laborDetail.annualLaborCost)}`);
-    if (str(laborDetail.annualHoursAffected)) lines.push(`- **Annual hours affected:** ${str(laborDetail.annualHoursAffected)}`);
-    if (str(laborDetail.automationSavings)) lines.push(`- **Automation savings:** ${str(laborDetail.automationSavings)}`);
+    if (blendedRate) lines.push(`- **Avg. fully-loaded rate:** ${blendedRate}`);
+    if (totalAnnualCost) lines.push(`- **Annual labor cost:** ${totalAnnualCost}`);
+    if (totalAnnualHours) lines.push(`- **Annual hours affected:** ${totalAnnualHours}`);
+    if (costSavingsAnnual) lines.push(`- **Automation savings:** ${costSavingsAnnual}`);
     lines.push('');
   }
 
+  // Cost breakdown (each field is { value, notes?, source? })
   const costBreakdown = rec(qROI.costBreakdown);
-  if (str(costBreakdown.implementation) || str(costBreakdown.annualLicensing)) {
+  const cbImpl = str(rec(costBreakdown.implementation).value);
+  const cbLic = str(rec(costBreakdown.annualLicensing).value);
+  const cbSupport = str(rec(costBreakdown.annualSupportMaintenance).value);
+  if (cbImpl || cbLic) {
     lines.push('## Cost Breakdown', '');
-    if (str(costBreakdown.implementation)) lines.push(`- **Implementation:** ${str(costBreakdown.implementation)}`);
-    if (str(costBreakdown.annualLicensing)) lines.push(`- **Annual licensing:** ${str(costBreakdown.annualLicensing)}`);
-    if (str(costBreakdown.annualSupportMaintenance)) lines.push(`- **Annual support/maintenance:** ${str(costBreakdown.annualSupportMaintenance)}`);
+    if (cbImpl) lines.push(`- **Implementation:** ${cbImpl}`);
+    if (cbLic) lines.push(`- **Annual licensing:** ${cbLic}`);
+    if (cbSupport) lines.push(`- **Annual support/maintenance:** ${cbSupport}`);
     lines.push('');
   }
 
+  // Pilot ROI (nested: pilotCapex/pilotOpex/pilotAnnualSavings/pilotYear1Net are { value, calculation })
   const pilotROI = rec(qROI.pilotROI);
-  if (str(pilotROI.pilotCost) || str(pilotROI.pilotBenefit)) {
+  const pilotCapex = str(rec(pilotROI.pilotCapex).value);
+  const pilotOpex = str(rec(pilotROI.pilotOpex).value);
+  const pilotSavings = str(rec(pilotROI.pilotAnnualSavings).value);
+  const pilotYear1Net = str(rec(pilotROI.pilotYear1Net).value);
+  const pilotPayback = numStr(pilotROI.pilotPaybackMonths);
+  if (pilotCapex || pilotSavings) {
     lines.push('## Pilot Economics', '');
-    if (str(pilotROI.pilotCost)) lines.push(`- **Pilot cost:** ${str(pilotROI.pilotCost)}`);
-    if (str(pilotROI.pilotBenefit)) lines.push(`- **Pilot benefit:** ${str(pilotROI.pilotBenefit)}`);
-    if (str(pilotROI.pilotROI)) lines.push(`- **Pilot ROI:** ${str(pilotROI.pilotROI)}`);
-    if (str(pilotROI.pilotDuration)) lines.push(`- **Duration:** ${str(pilotROI.pilotDuration)}`);
+    if (pilotCapex) lines.push(`- **Pilot capex:** ${pilotCapex}`);
+    if (pilotOpex) lines.push(`- **Pilot opex:** ${pilotOpex}`);
+    if (pilotSavings) lines.push(`- **Pilot annual savings:** ${pilotSavings}`);
+    if (pilotYear1Net) lines.push(`- **Pilot Year 1 net:** ${pilotYear1Net}`);
+    if (pilotPayback) lines.push(`- **Payback:** ${pilotPayback} months`);
     lines.push('');
   }
 
+  // Sensitivity analysis (roiPercentage, paybackMonths, annualSavings — all numbers/strings)
   const sensitivity = rec(qROI.sensitivity);
   if (sensitivity.conservative || sensitivity.realistic || sensitivity.optimistic) {
     lines.push('## Sensitivity Analysis', '');
-    lines.push('| Scenario | NPV | ROI | Payback |');
-    lines.push('|----------|-----|-----|---------|');
+    lines.push('| Scenario | ROI | Payback | Annual Savings |');
+    lines.push('|----------|-----|---------|----------------|');
     for (const [label, key] of [['Conservative', 'conservative'], ['Realistic', 'realistic'], ['Optimistic', 'optimistic']] as const) {
       const s = rec(sensitivity[key]);
-      lines.push(`| ${label} | ${str(s.npv)} | ${str(s.roi)} | ${str(s.paybackPeriod)} |`);
+      const roi = numStr(s.roiPercentage);
+      const payback = numStr(s.paybackMonths);
+      lines.push(`| ${label} | ${roi ? roi + '%' : ''} | ${payback ? payback + ' months' : ''} | ${str(s.annualSavings)} |`);
     }
     lines.push('');
   }
 
+  // 5-year projection (calculator uses costsThisYear/valueDelivered/netThisYear/runningTotal)
   const fiveYear = arr(qROI.fiveYearProjection);
   if (fiveYear.length > 0) {
     lines.push('## Five-Year Projection', '');
@@ -753,7 +849,7 @@ function buildFinancialCase(input: SkillRenderInput): string {
     lines.push('|------|-----------|-------|---------------|------------|');
     for (const yr of fiveYear) {
       const y = rec(yr);
-      lines.push(`| ${str(y.year)} | ${str(y.investment)} | ${str(y.value)} | ${str(y.netCashFlow)} | ${str(y.cumulative)} |`);
+      lines.push(`| ${numStr(y.year)} | ${str(y.costsThisYear) || str(y.investment)} | ${str(y.valueDelivered) || str(y.value)} | ${str(y.netThisYear) || str(y.netCashFlow)} | ${str(y.runningTotal) || str(y.cumulative)} |`);
     }
     lines.push('');
   }
@@ -1010,10 +1106,12 @@ function buildArchitectureDecisions(input: SkillRenderInput): string {
   }
 
   const feasibility = rec(bp.feasibilityIndicators);
-  if (str(feasibility.overallScore) || str(feasibility.recommendation)) {
+  const feasConfidence = str(feasibility.feasibilityConfidence) || str(feasibility.overallScore);
+  const feasBasis = str(feasibility.feasibilityBasis) || str(feasibility.recommendation);
+  if (feasConfidence || feasBasis) {
     lines.push('## Feasibility Assessment', '');
-    if (str(feasibility.overallScore)) lines.push(`**Score:** ${str(feasibility.overallScore)}`);
-    if (str(feasibility.recommendation)) lines.push(`**Recommendation:** ${str(feasibility.recommendation)}`);
+    if (feasConfidence) lines.push(`**Confidence:** ${feasConfidence}`);
+    if (feasBasis) lines.push(`**Basis:** ${feasBasis}`);
     lines.push('');
   }
 

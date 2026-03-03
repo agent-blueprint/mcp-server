@@ -64,20 +64,36 @@ const fullInput: SkillRenderInput = {
         roi: '285%',
         npv: '$450,000',
         paybackPeriod: '8 months',
+        laborCostDetail: {
+          currentStateBaseline: {
+            blendedHourlyRate: { value: '$95/hr' },
+            totalAnnualCost: { value: '$300,000' },
+            totalAnnualHours: { value: '3,150' },
+          },
+          projectedSavings: {
+            costSavingsAnnual: { value: '$180,000' },
+          },
+        },
+        costBreakdown: {
+          implementation: { value: '$150,000' },
+          annualLicensing: { value: '$30,000' },
+          annualSupportMaintenance: { value: '$15,000' },
+        },
         pilotROI: {
-          pilotCost: '$50,000',
-          pilotBenefit: '$80,000',
-          pilotROI: '60%',
-          pilotDuration: '3 months',
+          pilotCapex: { value: '$37,500', calculation: '$150,000 × 25%' },
+          pilotOpex: { value: '$7,500', calculation: '$37,500 × 20%' },
+          pilotAnnualSavings: { value: '$27,000', calculation: '$180,000 × 15%' },
+          pilotPaybackMonths: '20',
+          pilotYear1Net: { value: '-$18,000', calculation: '$27,000 - $45,000' },
         },
         sensitivity: {
-          conservative: { npv: '$300K', roi: '180%', paybackPeriod: '12 months' },
-          realistic: { npv: '$450K', roi: '285%', paybackPeriod: '8 months' },
-          optimistic: { npv: '$600K', roi: '380%', paybackPeriod: '5 months' },
+          conservative: { roiPercentage: 180, paybackMonths: 12, annualSavings: '$144,000' },
+          realistic: { roiPercentage: 285, paybackMonths: 8, annualSavings: '$180,000' },
+          optimistic: { roiPercentage: 380, paybackMonths: 5, annualSavings: '$228,000' },
         },
         fiveYearProjection: [
-          { year: 'Year 1', investment: '$200K', value: '$100K', netCashFlow: '-$100K', cumulative: '-$100K' },
-          { year: 'Year 2', investment: '$50K', value: '$250K', netCashFlow: '$200K', cumulative: '$100K' },
+          { year: 1, costsThisYear: '$200K', valueDelivered: '$100K', netThisYear: '-$100K', runningTotal: '-$100K' },
+          { year: 2, costsThisYear: '$50K', valueDelivered: '$250K', netThisYear: '$200K', runningTotal: '$100K' },
         ],
       },
     },
@@ -253,8 +269,15 @@ describe('renderSkillDirectory with full data', () => {
     expect(financial).toContain('8 months');
     expect(financial).toContain('## Sensitivity Analysis');
     expect(financial).toContain('Conservative');
+    expect(financial).toContain('180%');   // conservative ROI
     expect(financial).toContain('## Five-Year Projection');
+    expect(financial).toContain('$200K');  // year 1 costs
     expect(financial).toContain('## Pilot Economics');
+    expect(financial).toContain('$37,500'); // pilot capex
+    expect(financial).toContain('## Labor Cost Analysis');
+    expect(financial).toContain('$95/hr');  // blended rate
+    expect(financial).toContain('## Cost Breakdown');
+    expect(financial).toContain('$150,000'); // implementation
   });
 
   it('implementation-roadmap.md includes epics and stories', () => {
@@ -296,6 +319,9 @@ describe('renderSkillDirectory with full data', () => {
 
     expect(skill).toContain('**ROI:** 285%');
     expect(skill).toContain('**NPV:** $450,000');
+    // Pilot economics should use nested field structure
+    expect(skill).toContain('Pilot capex: $37,500');
+    expect(skill).toContain('Pilot annual savings: $27,000');
   });
 });
 
@@ -360,5 +386,43 @@ describe('renderSkillDirectory with missing data', () => {
     // Should not throw
     const files = renderSkillDirectory(input);
     expect(files.size).toBe(9);
+  });
+
+  it('SKILL.md renders phases from implementation plan epics', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      implementationPlanData: {
+        epics: [
+          { name: 'Agent Setup', phase: 'Pilot', estimatedDuration: '3 weeks' },
+          { name: 'Full Deployment', phase: 'Phase 2', estimatedDuration: '8 weeks' },
+        ],
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const skill = files.get('SKILL.md')!;
+
+    expect(skill).toContain('**Agent Setup** (3 weeks)');
+    expect(skill).toContain('**Full Deployment** (8 weeks)');
+  });
+
+  it('five-year projection renders with old field names for backward compat', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      businessCaseData: {
+        executiveSummary: { purpose: 'Test' },
+        benefits: {
+          quantifiedROI: {
+            fiveYearProjection: [
+              { year: 1, investment: '$100K', value: '$50K', netCashFlow: '-$50K', cumulative: '-$50K' },
+            ],
+          },
+        },
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const financial = files.get('references/financial-case.md')!;
+
+    expect(financial).toContain('$100K');
+    expect(financial).toContain('$50K');
   });
 });
