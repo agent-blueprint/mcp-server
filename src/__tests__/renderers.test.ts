@@ -325,6 +325,47 @@ describe('renderSkillDirectory with full data', () => {
   });
 });
 
+describe('investment tier with multi-number amounts', () => {
+  it('parses first number from compound investment string', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      businessCaseData: {
+        executiveSummary: {
+          ask: { investmentAmount: '$13,143 one-time + $2,981 annual ongoing' },
+        },
+        benefits: {},
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const skill = files.get('SKILL.md')!;
+
+    expect(skill).toContain('investment-tier: "low"');
+  });
+
+  it('handles simple investment amount', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      businessCaseData: {
+        executiveSummary: {
+          ask: { investmentAmount: '$200,000' },
+        },
+        benefits: {},
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const skill = files.get('SKILL.md')!;
+
+    expect(skill).toContain('investment-tier: "medium"');
+  });
+
+  it('returns unknown when no business case', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const skill = files.get('SKILL.md')!;
+
+    expect(skill).toContain('investment-tier: "unknown"');
+  });
+});
+
 describe('renderSkillDirectory with missing data', () => {
   it('handles missing business case gracefully', () => {
     const input: SkillRenderInput = {
