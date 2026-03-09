@@ -21,12 +21,15 @@ export interface SkillRenderInput {
 // =============================================================================
 
 export function slugify(input: string): string {
-  return input
+  const full = input
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
+    .replace(/^-+|-+$/g, '');
+  if (full.length <= 60) return full;
+  const trimmed = full.slice(0, 60);
+  const lastDash = trimmed.lastIndexOf('-');
+  return lastDash > 20 ? trimmed.slice(0, lastDash) : trimmed;
 }
 
 function str(val: unknown): string {
@@ -85,15 +88,15 @@ function getInvestmentTier(bp: Record<string, unknown>, bc: Record<string, unkno
   const bpTier = str(fi.investmentTier);
   if (bpTier && ['low', 'medium', 'high'].includes(bpTier)) return bpTier;
   // Fallback: derive from business case ask amount (first numeric token)
-  if (!bc) return 'unknown';
+  if (!bc) return 'pending';
   const es = rec(bc.executiveSummary);
   const ask = rec(es.ask);
   const amount = str(ask.investmentAmount);
-  if (!amount) return 'unknown';
+  if (!amount) return 'pending';
   const match = amount.match(/[\d,]+(?:\.\d+)?/);
-  if (!match) return 'unknown';
+  if (!match) return 'pending';
   const num = parseFloat(match[0].replace(/,/g, ''));
-  if (isNaN(num)) return 'unknown';
+  if (isNaN(num)) return 'pending';
   if (num < 150000) return 'low';
   if (num < 400000) return 'medium';
   return 'high';
@@ -297,7 +300,8 @@ function buildSkillBody(input: SkillRenderInput): string {
     const skillPilotCapex = str(rec(pilotROI.pilotCapex).value);
     const skillPilotSavings = str(rec(pilotROI.pilotAnnualSavings).value);
     const skillPilotYear1Net = str(rec(pilotROI.pilotYear1Net).value);
-    if (skillPilotCapex || skillPilotSavings) {
+    const skillPilotSuppressed = pilotROI.suppressed === true || pilotROI.suppressed === 'true';
+    if (!skillPilotSuppressed && (skillPilotCapex || skillPilotSavings)) {
       lines.push('');
       lines.push('**Pilot economics:**');
       if (skillPilotCapex) lines.push(`- Pilot capex: ${skillPilotCapex}`);
@@ -668,9 +672,6 @@ function buildAgentSpecifications(input: SkillRenderInput): string {
     if (str(instructions.description)) {
       lines.push('### Instructions', '', str(instructions.description), '');
     }
-    if (str(instructions.role)) {
-      lines.push(`**Role:** ${str(instructions.role)}`, '');
-    }
     const steps = arr(instructions.steps);
     if (steps.length > 0) {
       lines.push('**Steps:**', '');
@@ -841,7 +842,8 @@ function buildFinancialCase(input: SkillRenderInput): string {
   const pilotSavings = str(rec(pilotROI.pilotAnnualSavings).value);
   const pilotYear1Net = str(rec(pilotROI.pilotYear1Net).value);
   const pilotPayback = numStr(pilotROI.pilotPaybackMonths);
-  if (pilotCapex || pilotSavings) {
+  const pilotSuppressed = pilotROI.suppressed === true || pilotROI.suppressed === 'true';
+  if (!pilotSuppressed && (pilotCapex || pilotSavings)) {
     lines.push('## Pilot Economics', '');
     if (pilotCapex) lines.push(`- **Pilot capex:** ${pilotCapex}`);
     if (pilotOpex) lines.push(`- **Pilot opex:** ${pilotOpex}`);

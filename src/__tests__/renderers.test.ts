@@ -358,11 +358,11 @@ describe('investment tier with multi-number amounts', () => {
     expect(skill).toContain('investment-tier: "medium"');
   });
 
-  it('returns unknown when no business case', () => {
+  it('returns pending when no business case', () => {
     const files = renderSkillDirectory(minimalInput);
     const skill = files.get('SKILL.md')!;
 
-    expect(skill).toContain('investment-tier: "unknown"');
+    expect(skill).toContain('investment-tier: "pending"');
   });
 });
 
