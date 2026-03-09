@@ -79,20 +79,23 @@ function getTeam(bp: Record<string, unknown>): Record<string, unknown>[] {
   );
 }
 
-function getInvestmentTier(bc: Record<string, unknown> | undefined): string {
+function getInvestmentTier(bp: Record<string, unknown>, bc: Record<string, unknown> | undefined): string {
+  // Primary: blueprint feasibility indicators (canonical source)
+  const fi = rec(bp.feasibilityIndicators);
+  const bpTier = str(fi.investmentTier);
+  if (bpTier && ['low', 'medium', 'high'].includes(bpTier)) return bpTier;
+  // Fallback: derive from business case ask amount (first numeric token)
   if (!bc) return 'unknown';
   const es = rec(bc.executiveSummary);
   const ask = rec(es.ask);
   const amount = str(ask.investmentAmount);
   if (!amount) return 'unknown';
-  // Extract the first number group only (avoid concatenating multiple numbers
-  // e.g. "$13,143 one-time + $2,981 annual" → 13143, not 131432981)
   const match = amount.match(/[\d,]+(?:\.\d+)?/);
   if (!match) return 'unknown';
   const num = parseFloat(match[0].replace(/,/g, ''));
   if (isNaN(num)) return 'unknown';
-  if (num < 100000) return 'low';
-  if (num < 500000) return 'medium';
+  if (num < 150000) return 'low';
+  if (num < 400000) return 'medium';
   return 'high';
 }
 
@@ -121,7 +124,7 @@ function buildSkillFrontmatter(input: SkillRenderInput): string {
     `  platform: "${platform}"`,
     `  agent-count: "${team.length}"`,
     `  pattern: "${pattern}"`,
-    `  investment-tier: "${getInvestmentTier(input.businessCaseData)}"`,
+    `  investment-tier: "${getInvestmentTier(input.blueprintData, input.businessCaseData)}"`,
     '---',
   ];
   return lines.join('\n');
@@ -688,6 +691,10 @@ function buildAgentSpecifications(input: SkillRenderInput): string {
       lines.push('| Tool | Category | Description |');
       lines.push('|------|----------|-------------|');
       for (const tool of tools) {
+        if (typeof tool === 'string') {
+          lines.push(`| ${tool} | | |`);
+          continue;
+        }
         const t = rec(tool);
         const tName = str(t.name);
         const tCat = str(t.toolCategory) || str(t.type) || '';
