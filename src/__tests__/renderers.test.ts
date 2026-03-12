@@ -200,7 +200,7 @@ describe('renderSkillDirectory', () => {
     expect(skill.startsWith('---\n')).toBe(true);
     expect(skill).toContain('name: test-blueprint');
     expect(skill).toContain('blueprint-id: "bp-123"');
-    expect(skill).toContain('platform: "ServiceNow"');
+    expect(skill).toContain('target-platform: "ServiceNow"');
     expect(skill).toContain('agent-count: "1"');
     expect(skill).toContain('pattern: "Supervisor"');
   });

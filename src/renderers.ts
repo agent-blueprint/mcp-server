@@ -124,7 +124,7 @@ function buildSkillFrontmatter(input: SkillRenderInput): string {
     '  generated-by: agent-blueprint',
     `  generated-at: "${new Date().toISOString()}"`,
     `  blueprint-id: "${input.blueprintId}"`,
-    `  platform: "${platform}"`,
+    `  target-platform: "${platform}"`,
     `  agent-count: "${team.length}"`,
     `  pattern: "${pattern}"`,
     `  investment-tier: "${getInvestmentTier(input.blueprintData, input.businessCaseData)}"`,
