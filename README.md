@@ -1,14 +1,43 @@
 # @agentblueprint/mcp-server
 
-MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — gives your coding agent read access to your AI blueprints, business cases, implementation plans, and specs.
+CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — gives your coding agent read access to your AI blueprints, business cases, implementation plans, and specs.
 
-## Quick Start
+## CLI Quick Start
+
+```bash
+# Install globally
+npm install -g @agentblueprint/mcp-server
+
+# Store your API token (one-time)
+agentblueprint login
+
+# List blueprints
+agentblueprint list
+
+# Get a blueprint summary (JSON to stdout)
+agentblueprint get blueprint <id>
+
+# Get business case, use case, implementation plan, or business profile
+agentblueprint get business-case <id>
+agentblueprint get use-case <id>
+agentblueprint get implementation-plan <id>
+agentblueprint get business-profile
+
+# Download as Agent Skills directory
+agentblueprint download <id>
+
+# Partner cross-org access
+agentblueprint list --org <customer-org-id>
+agentblueprint get blueprint <id> --org <customer-org-id>
+```
+
+Or run without installing:
 
 ```bash
 npx @agentblueprint/mcp-server --token <your-api-key>
 ```
 
-## Claude Code Setup
+## MCP Server Setup
 
 Add to your Claude Code MCP config (`.claude/settings.json` or project settings):
 
@@ -34,17 +63,15 @@ Add to your Claude Code MCP config (`.claude/settings.json` or project settings)
 
 ## Download Blueprint as Agent Skills
 
-Download a blueprint as a local Agent Skills directory that any coding agent can read from the filesystem. This is the recommended way to work with blueprints — it keeps your agent's context window small while giving it access to all the details on demand.
+Download a blueprint as a local Agent Skills directory that any coding agent can read from the filesystem. This is the recommended way to work with blueprints.
 
 ```bash
-# List available blueprints
-npx @agentblueprint/mcp-server download --token <key> --list
+# Using the CLI (after `agentblueprint login`)
+agentblueprint download <id>
+agentblueprint download <id> --dir ./my-skills
 
-# Download a blueprint
+# Or via npx
 npx @agentblueprint/mcp-server download --token <key> --blueprint <id>
-
-# Download to a custom directory
-npx @agentblueprint/mcp-server download --token <key> --blueprint <id> --dir ./my-skills
 ```
 
 This creates an Agent Skills directory structure:
@@ -88,9 +115,17 @@ The `get_blueprint`, `get_business_case`, and `get_implementation_plan` tools re
 | `agentblueprint://blueprints/{id}` | Blueprint detail (Markdown) |
 | `agentblueprint://blueprints/{id}/spec` | Implementation spec (Markdown) |
 
+## Authentication
+
+Three ways to provide your API token (checked in this order):
+
+1. `--token <key>` flag on any command
+2. `AGENT_BLUEPRINT_API_KEY` environment variable
+3. `agentblueprint login` (saved to `~/.config/agentblueprint/config.json`)
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `AGENT_BLUEPRINT_API_KEY` | Yes | — | Your API token |
+| `AGENT_BLUEPRINT_API_KEY` | No | — | Your API token (alternative to `agentblueprint login`) |
 | `AGENT_BLUEPRINT_API_URL` | No | `https://app.agentblueprint.ai` | API base URL |

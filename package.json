@@ -1,10 +1,11 @@
 {
   "name": "@agentblueprint/mcp-server",
-  "version": "0.3.5",
-  "description": "MCP server for Agent Blueprint — read blueprints, business cases, implementation plans, and specs from your coding agent",
+  "version": "0.4.0",
+  "description": "CLI and MCP server for Agent Blueprint — read blueprints, business cases, implementation plans, and specs from your coding agent",
   "type": "module",
   "bin": {
-    "agent-blueprint-mcp": "dist/index.js"
+    "agent-blueprint-mcp": "dist/index.js",
+    "agentblueprint": "dist/cli.js"
   },
   "main": "dist/index.js",
   "files": [
@@ -19,6 +20,7 @@
   },
   "keywords": [
     "mcp",
+    "cli",
     "agent-blueprint",
     "ai",
     "blueprint",

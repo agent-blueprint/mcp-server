@@ -6,10 +6,11 @@ import type { Config } from './config.js';
 import { renderSkillDirectory, slugify } from './renderers.js';
 import type { SkillRenderInput } from './renderers.js';
 
-interface DownloadArgs {
+export interface DownloadArgs {
   blueprintId?: string;
   dir: string;
   list: boolean;
+  customerOrgId?: string;
 }
 
 export function parseDownloadArgs(args: string[]): DownloadArgs {
@@ -19,7 +20,8 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
   };
 
   for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
+    const arg = args[i];
+    switch (arg) {
       case '--blueprint':
         result.blueprintId = args[++i];
         break;
@@ -28,6 +30,15 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
         break;
       case '--list':
         result.list = true;
+        break;
+      case '--org':
+        result.customerOrgId = args[++i];
+        break;
+      default:
+        // Positional arg: treat as blueprint ID if it doesn't start with --
+        if (!arg.startsWith('--') && !result.blueprintId) {
+          result.blueprintId = arg;
+        }
         break;
     }
   }
@@ -39,7 +50,7 @@ export async function runDownload(config: Config, args: DownloadArgs): Promise<v
   const client = new AgentBlueprintClient(config);
 
   if (args.list) {
-    await listBlueprints(client);
+    await listBlueprints(client, args.customerOrgId);
     return;
   }
 
@@ -48,11 +59,11 @@ export async function runDownload(config: Config, args: DownloadArgs): Promise<v
     process.exit(1);
   }
 
-  await downloadBlueprint(client, args.blueprintId, args.dir);
+  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId);
 }
 
-async function listBlueprints(client: AgentBlueprintClient): Promise<void> {
-  const blueprints = await client.listBlueprints();
+async function listBlueprints(client: AgentBlueprintClient, customerOrgId?: string): Promise<void> {
+  const blueprints = await client.listBlueprints(customerOrgId);
 
   if (blueprints.length === 0) {
     console.error('No blueprints found.');
@@ -69,23 +80,24 @@ async function listBlueprints(client: AgentBlueprintClient): Promise<void> {
     console.error('');
   }
 
-  console.error(`Use: npx @agentblueprint/mcp-server download --blueprint <id>`);
+  console.error(`Use: agentblueprint download <id>`);
 }
 
 async function downloadBlueprint(
   client: AgentBlueprintClient,
   blueprintId: string,
-  baseDir: string
+  baseDir: string,
+  customerOrgId?: string
 ): Promise<void> {
   console.error(`Fetching blueprint ${blueprintId}...`);
 
   // Fetch all data in parallel
   const [blueprint, businessCase, implementationPlan, useCase, businessProfile] = await Promise.all([
-    client.getBlueprint(blueprintId),
-    client.getBusinessCase(blueprintId).catch(() => null),
-    client.getImplementationPlan(blueprintId).catch(() => null),
-    client.getUseCase(blueprintId).catch(() => null),
-    client.getBusinessProfile().catch(() => null),
+    client.getBlueprint(blueprintId, customerOrgId),
+    client.getBusinessCase(blueprintId, customerOrgId).catch(() => null),
+    client.getImplementationPlan(blueprintId, customerOrgId).catch(() => null),
+    client.getUseCase(blueprintId, customerOrgId).catch(() => null),
+    client.getBusinessProfile(customerOrgId).catch(() => null),
   ]);
 
   const title = (blueprint.data as Record<string, unknown>).title as string
