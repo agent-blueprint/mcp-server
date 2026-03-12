@@ -51,10 +51,10 @@ function summarizeBlueprint(blueprint: BlueprintDetail): Record<string, unknown>
 
 export async function handleGetBlueprint(
   client: AgentBlueprintClient,
-  args: { blueprintId: string }
+  args: { blueprintId: string; customerOrgId?: string }
 ) {
   try {
-    const blueprint = await client.getBlueprint(args.blueprintId);
+    const blueprint = await client.getBlueprint(args.blueprintId, args.customerOrgId);
     const summary = summarizeBlueprint(blueprint);
     return {
       content: [

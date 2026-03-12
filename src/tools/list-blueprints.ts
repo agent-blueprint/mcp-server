@@ -10,9 +10,9 @@ export const listBlueprintsTool = {
   },
 };
 
-export async function handleListBlueprints(client: AgentBlueprintClient) {
+export async function handleListBlueprints(client: AgentBlueprintClient, customerOrgId?: string) {
   try {
-    const blueprints = await client.listBlueprints();
+    const blueprints = await client.listBlueprints(customerOrgId);
     return {
       content: [
         {

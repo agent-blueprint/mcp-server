@@ -14,9 +14,14 @@ export class AgentBlueprintClient {
     this.config = config;
   }
 
-  private async request<T>(path: string): Promise<T> {
-    const url = `${this.config.apiUrl}/api/v1${path}`;
-    const response = await fetch(url, {
+  private async request<T>(path: string, query?: Record<string, string>): Promise<T> {
+    const url = new URL(`${this.config.apiUrl}/api/v1${path}`);
+    if (query) {
+      for (const [k, v] of Object.entries(query)) {
+        url.searchParams.set(k, v);
+      }
+    }
+    const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${this.config.apiKey}`,
@@ -40,39 +45,43 @@ export class AgentBlueprintClient {
     return json.data;
   }
 
-  async getBusinessProfile(): Promise<BusinessProfile> {
-    return this.request<BusinessProfile>('/business-profile');
+  private orgQuery(customerOrgId?: string): Record<string, string> | undefined {
+    return customerOrgId ? { customerOrgId } : undefined;
   }
 
-  async listBlueprints(): Promise<BlueprintSummary[]> {
-    return this.request<BlueprintSummary[]>('/blueprints');
+  async getBusinessProfile(customerOrgId?: string): Promise<BusinessProfile> {
+    return this.request<BusinessProfile>('/business-profile', this.orgQuery(customerOrgId));
   }
 
-  async getBlueprint(id: string): Promise<BlueprintDetail> {
-    return this.request<BlueprintDetail>(`/blueprints/${encodeURIComponent(id)}`);
+  async listBlueprints(customerOrgId?: string): Promise<BlueprintSummary[]> {
+    return this.request<BlueprintSummary[]>('/blueprints', this.orgQuery(customerOrgId));
   }
 
-  async getBusinessCase(blueprintId: string): Promise<ArtifactResponse> {
+  async getBlueprint(id: string, customerOrgId?: string): Promise<BlueprintDetail> {
+    return this.request<BlueprintDetail>(`/blueprints/${encodeURIComponent(id)}`, this.orgQuery(customerOrgId));
+  }
+
+  async getBusinessCase(blueprintId: string, customerOrgId?: string): Promise<ArtifactResponse> {
     return this.request<ArtifactResponse>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/business-case`
+      `/blueprints/${encodeURIComponent(blueprintId)}/business-case`, this.orgQuery(customerOrgId)
     );
   }
 
-  async getImplementationPlan(blueprintId: string): Promise<ArtifactResponse> {
+  async getImplementationPlan(blueprintId: string, customerOrgId?: string): Promise<ArtifactResponse> {
     return this.request<ArtifactResponse>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/implementation-plan`
+      `/blueprints/${encodeURIComponent(blueprintId)}/implementation-plan`, this.orgQuery(customerOrgId)
     );
   }
 
-  async getUseCase(blueprintId: string): Promise<Record<string, unknown>> {
+  async getUseCase(blueprintId: string, customerOrgId?: string): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/use-case`
+      `/blueprints/${encodeURIComponent(blueprintId)}/use-case`, this.orgQuery(customerOrgId)
     );
   }
 
-  async getImplementationSpec(blueprintId: string): Promise<ImplementationSpecResponse> {
+  async getImplementationSpec(blueprintId: string, customerOrgId?: string): Promise<ImplementationSpecResponse> {
     return this.request<ImplementationSpecResponse>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/implementation-spec`
+      `/blueprints/${encodeURIComponent(blueprintId)}/implementation-spec`, this.orgQuery(customerOrgId)
     );
   }
 }

@@ -53,10 +53,10 @@ function summarizeBusinessCase(bc: ArtifactResponse): Record<string, unknown> {
 
 export async function handleGetBusinessCase(
   client: AgentBlueprintClient,
-  args: { blueprintId: string }
+  args: { blueprintId: string; customerOrgId?: string }
 ) {
   try {
-    const businessCase = await client.getBusinessCase(args.blueprintId);
+    const businessCase = await client.getBusinessCase(args.blueprintId, args.customerOrgId);
     const summary = summarizeBusinessCase(businessCase);
     return {
       content: [

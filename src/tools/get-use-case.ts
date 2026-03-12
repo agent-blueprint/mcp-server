@@ -18,10 +18,10 @@ export const getUseCaseTool = {
 
 export async function handleGetUseCase(
   client: AgentBlueprintClient,
-  args: { blueprintId: string }
+  args: { blueprintId: string; customerOrgId?: string }
 ) {
   try {
-    const useCase = await client.getUseCase(args.blueprintId);
+    const useCase = await client.getUseCase(args.blueprintId, args.customerOrgId);
     return {
       content: [
         {

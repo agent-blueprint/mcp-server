@@ -1,9 +1,9 @@
 import type { AgentBlueprintClient } from '../client.js';
 import { formatError } from '../errors.js';
 
-export async function handleGetBusinessProfile(client: AgentBlueprintClient) {
+export async function handleGetBusinessProfile(client: AgentBlueprintClient, customerOrgId?: string) {
   try {
-    const profile = await client.getBusinessProfile();
+    const profile = await client.getBusinessProfile(customerOrgId);
     return {
       content: [
         {

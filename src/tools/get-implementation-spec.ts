@@ -18,10 +18,10 @@ export const getImplementationSpecTool = {
 
 export async function handleGetImplementationSpec(
   client: AgentBlueprintClient,
-  args: { blueprintId: string }
+  args: { blueprintId: string; customerOrgId?: string }
 ) {
   try {
-    const spec = await client.getImplementationSpec(args.blueprintId);
+    const spec = await client.getImplementationSpec(args.blueprintId, args.customerOrgId);
     return {
       content: [
         {

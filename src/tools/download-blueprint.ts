@@ -5,16 +5,17 @@ import type { SkillRenderInput } from '../renderers.js';
 
 export async function handleDownloadBlueprint(
   client: AgentBlueprintClient,
-  args: { blueprintId: string }
+  args: { blueprintId: string; customerOrgId?: string }
 ) {
   try {
+    const orgId = args.customerOrgId;
     // Fetch all data in parallel
     const [blueprint, businessCase, implementationPlan, useCase, businessProfile] = await Promise.all([
-      client.getBlueprint(args.blueprintId),
-      client.getBusinessCase(args.blueprintId).catch(() => null),
-      client.getImplementationPlan(args.blueprintId).catch(() => null),
-      client.getUseCase(args.blueprintId).catch(() => null),
-      client.getBusinessProfile().catch(() => null),
+      client.getBlueprint(args.blueprintId, orgId),
+      client.getBusinessCase(args.blueprintId, orgId).catch(() => null),
+      client.getImplementationPlan(args.blueprintId, orgId).catch(() => null),
+      client.getUseCase(args.blueprintId, orgId).catch(() => null),
+      client.getBusinessProfile(orgId).catch(() => null),
     ]);
 
     const bpData = blueprint.data as Record<string, unknown>;

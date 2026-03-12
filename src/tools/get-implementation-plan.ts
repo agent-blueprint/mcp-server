@@ -54,10 +54,10 @@ function summarizeImplementationPlan(plan: ArtifactResponse): Record<string, unk
 
 export async function handleGetImplementationPlan(
   client: AgentBlueprintClient,
-  args: { blueprintId: string }
+  args: { blueprintId: string; customerOrgId?: string }
 ) {
   try {
-    const plan = await client.getImplementationPlan(args.blueprintId);
+    const plan = await client.getImplementationPlan(args.blueprintId, args.customerOrgId);
     const summary = summarizeImplementationPlan(plan);
     return {
       content: [
