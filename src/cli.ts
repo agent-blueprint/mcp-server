@@ -12,6 +12,7 @@ import { handleGetBlueprint } from './tools/get-blueprint.js';
 import { handleGetBusinessCase } from './tools/get-business-case.js';
 import { handleGetBusinessProfile } from './tools/get-business-profile.js';
 import { handleGetImplementationPlan } from './tools/get-implementation-plan.js';
+import { handleGetImplementationSpec } from './tools/get-implementation-spec.js';
 import { handleGetUseCase } from './tools/get-use-case.js';
 
 const require = createRequire(import.meta.url);
@@ -41,6 +42,7 @@ Usage:
   agentblueprint get business-case <id> [--org <id>]    Business case summary
   agentblueprint get use-case <id> [--org <id>]         Use case analysis
   agentblueprint get implementation-plan <id> [--org <id>]  Implementation plan summary
+  agentblueprint get implementation-spec <id> [--org <id>]  Implementation spec metadata
   agentblueprint get business-profile [--org <id>]      Business profile
   agentblueprint download <id> [--org <id>] [--dir <path>]  Download as Agent Skills
   agentblueprint --help                                 Show this help
@@ -51,6 +53,7 @@ Environment:
   AGENT_BLUEPRINT_API_URL    API base URL (default: https://app.agentblueprint.ai)
 
 Output goes to stdout (JSON). Status messages go to stderr.
+When stdin is piped (non-interactive), starts the MCP server instead.
 `.trim();
 
 // ─── Commands ─────────────────────────────────────────────────────
@@ -59,6 +62,7 @@ async function cmdLogin(args: string[]): Promise<void> {
   let token = findFlag(args, '--token');
 
   if (!token) {
+    console.error('Get a token at: https://app.agentblueprint.ai/settings/api-tokens\n');
     const rl = createInterface({ input: process.stdin, output: process.stderr });
     token = await new Promise<string>((resolve) => {
       rl.question('API token: ', (answer) => {
@@ -102,18 +106,23 @@ async function cmdGet(args: string[]): Promise<void> {
   const subtype = args[0];
   if (!subtype) {
     console.error('Error: Missing artifact type. Usage: agentblueprint get <type> [<id>]');
-    console.error('Types: blueprint, business-case, use-case, implementation-plan, business-profile');
+    console.error('Types: blueprint, business-case, use-case, implementation-plan, implementation-spec, business-profile');
     process.exit(1);
   }
 
   const rest = args.slice(1);
   const token = findFlag(rest, '--token');
   const customerOrgId = findFlag(rest, '--org');
+
+  // Find positional ID: first arg not starting with -- and not a value of a flag
+  const flagValues = new Set<number>();
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '--token' || rest[i] === '--org') flagValues.add(i + 1);
+  }
+  const positionalId = rest.find((a, i) => !a.startsWith('--') && !flagValues.has(i));
+
   const config = loadConfig(token);
   const client = new AgentBlueprintClient(config);
-
-  // Find positional ID (first arg that doesn't start with --)
-  const positionalId = rest.find(a => !a.startsWith('--') && rest[rest.indexOf(a) - 1] !== '--token' && rest[rest.indexOf(a) - 1] !== '--org');
 
   let result: { content: { type: string; text: string }[]; isError?: boolean };
 
@@ -150,12 +159,20 @@ async function cmdGet(args: string[]): Promise<void> {
       result = await handleGetImplementationPlan(client, { blueprintId: positionalId, customerOrgId });
       break;
     }
+    case 'implementation-spec': {
+      if (!positionalId) {
+        console.error('Error: Missing blueprint ID. Usage: agentblueprint get implementation-spec <id>');
+        process.exit(1);
+      }
+      result = await handleGetImplementationSpec(client, { blueprintId: positionalId, customerOrgId });
+      break;
+    }
     case 'business-profile': {
       result = await handleGetBusinessProfile(client, customerOrgId);
       break;
     }
     default:
-      console.error(`Error: Unknown type "${subtype}". Valid types: blueprint, business-case, use-case, implementation-plan, business-profile`);
+      console.error(`Error: Unknown type "${subtype}". Valid types: blueprint, business-case, use-case, implementation-plan, implementation-spec, business-profile`);
       process.exit(1);
   }
 
@@ -174,12 +191,35 @@ async function cmdDownload(args: string[]): Promise<void> {
   await runDownload(config, downloadArgs);
 }
 
+async function startMcpServer(args: string[]): Promise<void> {
+  // Dynamic import so the MCP SDK is only loaded when actually serving
+  const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
+  const { createServer } = await import('./server.js');
+
+  const token = findFlag(args, '--token');
+  const config = loadConfig(token);
+  const server = createServer(config);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
 // ─── Main ─────────────────────────────────────────────────────────
 
 async function main() {
   const args = process.argv.slice(2);
+  const isTTY = process.stdin.isTTY;
 
-  if (args.length === 0 || hasFlag(args, '--help', '-h')) {
+  // No args: show help on TTY, start MCP server on pipe
+  if (args.length === 0) {
+    if (isTTY) {
+      console.error(HELP);
+      process.exit(0);
+    }
+    await startMcpServer(args);
+    return;
+  }
+
+  if (hasFlag(args, '--help', '-h')) {
     console.error(HELP);
     process.exit(0);
   }
@@ -205,6 +245,9 @@ async function main() {
         break;
       case 'download':
         await cmdDownload(rest);
+        break;
+      case 'serve':
+        await startMcpServer(rest);
         break;
       default:
         console.error(`Unknown command: ${command}\n`);

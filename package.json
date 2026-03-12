@@ -4,8 +4,8 @@
   "description": "CLI and MCP server for Agent Blueprint — read blueprints, business cases, implementation plans, and specs from your coding agent",
   "type": "module",
   "bin": {
-    "agent-blueprint-mcp": "dist/index.js",
-    "agentblueprint": "dist/cli.js"
+    "agentblueprint": "dist/cli.js",
+    "agent-blueprint-mcp": "dist/index.js"
   },
   "main": "dist/index.js",
   "files": [

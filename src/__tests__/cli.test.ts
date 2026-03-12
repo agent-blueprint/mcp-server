@@ -61,9 +61,18 @@ describe('CLI binary', () => {
     expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('shows help with no arguments', async () => {
-    const { stderr } = await exec('node', [CLI_PATH]);
-    expect(stderr).toContain('Agent Blueprint CLI');
+  it('starts MCP server with no arguments on piped stdin (non-TTY)', async () => {
+    // When stdin is piped (as in execFile), no-args triggers MCP mode.
+    // Without a token, it errors with missing API key.
+    try {
+      await exec('node', [CLI_PATH], {
+        env: { ...process.env, AGENT_BLUEPRINT_API_KEY: '', HOME: '/tmp/nonexistent-cli-test' },
+      });
+      expect.fail('should have exited with error');
+    } catch (err: unknown) {
+      const error = err as { stderr: string; code: number };
+      expect(error.stderr).toContain('Missing API key');
+    }
   });
 
   it('errors on unknown command', async () => {
@@ -107,6 +116,16 @@ describe('CLI binary', () => {
     }
   });
 
+  it('errors on get implementation-spec without ID', async () => {
+    try {
+      await exec('node', [CLI_PATH, 'get', 'implementation-spec', '--token', 'ab_live_fake']);
+      expect.fail('should have exited with error');
+    } catch (err: unknown) {
+      const error = err as { stderr: string; code: number };
+      expect(error.stderr).toContain('Missing blueprint ID');
+    }
+  });
+
   it('errors on list without token', async () => {
     try {
       await exec('node', [CLI_PATH, 'list'], {
@@ -117,5 +136,11 @@ describe('CLI binary', () => {
       const error = err as { stderr: string; code: number };
       expect(error.stderr).toContain('Missing API key');
     }
+  });
+
+  it('help includes implementation-spec and serve', async () => {
+    const { stderr } = await exec('node', [CLI_PATH, '--help']);
+    expect(stderr).toContain('implementation-spec');
+    expect(stderr).toContain('When stdin is piped');
   });
 });

@@ -17,10 +17,11 @@ agentblueprint list
 # Get a blueprint summary (JSON to stdout)
 agentblueprint get blueprint <id>
 
-# Get business case, use case, implementation plan, or business profile
+# Get other artifacts
 agentblueprint get business-case <id>
 agentblueprint get use-case <id>
 agentblueprint get implementation-plan <id>
+agentblueprint get implementation-spec <id>
 agentblueprint get business-profile
 
 # Download as Agent Skills directory
@@ -31,13 +32,16 @@ agentblueprint list --org <customer-org-id>
 agentblueprint get blueprint <id> --org <customer-org-id>
 ```
 
-Or run without installing:
+Or run without installing via npx:
 
 ```bash
-npx @agentblueprint/mcp-server --token <your-api-key>
+npx @agentblueprint/mcp-server list --token <your-api-key>
+npx @agentblueprint/mcp-server get blueprint <id> --token <your-api-key>
 ```
 
 ## MCP Server Setup
+
+The same binary auto-detects MCP mode when stdin is piped (non-interactive). No separate command needed.
 
 Add to your Claude Code MCP config (`.claude/settings.json` or project settings):
 
@@ -54,6 +58,8 @@ Add to your Claude Code MCP config (`.claude/settings.json` or project settings)
   }
 }
 ```
+
+You can also start the MCP server explicitly with `agentblueprint serve`.
 
 ## Get an API Key
 
