@@ -189,8 +189,9 @@ describe('renderSkillDirectory', () => {
     expect(paths).toContain('references/implementation-roadmap.md');
     expect(paths).toContain('references/architecture-decisions.md');
     expect(paths).toContain('references/guardrails-and-governance.md');
+    expect(paths).toContain('references/evaluation-criteria.md');
     expect(paths).toContain('scripts/validate-spec.sh');
-    expect(files.size).toBe(9);
+    expect(files.size).toBe(10);
   });
 
   it('SKILL.md starts with YAML frontmatter', () => {
@@ -426,7 +427,7 @@ describe('renderSkillDirectory with missing data', () => {
     };
     // Should not throw
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(9);
+    expect(files.size).toBe(10);
   });
 
   it('SKILL.md renders phases from implementation plan epics', () => {
@@ -444,6 +445,69 @@ describe('renderSkillDirectory with missing data', () => {
 
     expect(skill).toContain('**Agent Setup** (3 weeks)');
     expect(skill).toContain('**Full Deployment** (8 weeks)');
+  });
+
+  it('evaluation-criteria.md renders with full data', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        roiBaseline: {
+          generatedAt: '2026-01-01T00:00:00Z',
+          operational: [
+            { name: 'Test Pass Rate', predictedValue: '99%', unit: '%', direction: 'higher_is_better', source: 'successCriteria.kpis' },
+          ],
+          financial: [
+            { name: 'ROI', predictedValue: '285%', unit: '%', direction: 'higher_is_better', source: 'quantifiedROI' },
+          ],
+        },
+      },
+      businessCaseData: fullInput.businessCaseData,
+    };
+    const files = renderSkillDirectory(input);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+
+    expect(evalCriteria).toContain('## Operational Metrics');
+    expect(evalCriteria).toContain('Test Pass Rate');
+    expect(evalCriteria).toContain('99%');
+    expect(evalCriteria).toContain('## Financial Metrics');
+    expect(evalCriteria).toContain('ROI');
+    expect(evalCriteria).toContain('285%');
+    expect(evalCriteria).toContain('## Agent-Level Metrics');
+    expect(evalCriteria).toContain('Test Agent');
+  });
+
+  it('evaluation-criteria.md shows placeholder without data', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        enhancedDigitalTeam: [
+          { name: 'Plain Agent', role: 'Does things', agentRole: 'Worker' },
+        ],
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+
+    expect(evalCriteria).toContain('No evaluation criteria available yet');
+  });
+
+  it('evaluation-criteria.md includes agent-level metrics', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+
+    expect(evalCriteria).toContain('## Agent-Level Metrics');
+    expect(evalCriteria).toContain('Test Agent');
+    expect(evalCriteria).toContain('Test Pass Rate');
+    expect(evalCriteria).toContain('99%');
+  });
+
+  it('validate-spec.sh checks for evaluation-criteria.md', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const script = files.get('scripts/validate-spec.sh')!;
+
+    expect(script).toContain('check_optional "references/evaluation-criteria.md"');
   });
 
   it('five-year projection renders with old field names for backward compat', () => {

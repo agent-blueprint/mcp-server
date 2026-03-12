@@ -1257,6 +1257,161 @@ function buildGuardrailsAndGovernance(input: SkillRenderInput): string {
   return lines.join('\n');
 }
 
+function normalizeMetricName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function buildEvaluationCriteria(input: SkillRenderInput): string {
+  const { blueprintData, businessCaseData } = input;
+  const bp = rec(blueprintData);
+  const bc = rec(businessCaseData);
+
+  const lines: string[] = [
+    '# Evaluation Criteria',
+    '',
+    '> Machine-readable success metrics for deployment monitoring.',
+    '> Map these criteria to your monitoring system to track agent performance.',
+    '',
+  ];
+
+  const roiBaseline = rec(bp.roiBaseline);
+  const roiOps = arr(roiBaseline.operational);
+  const roiFin = arr(roiBaseline.financial);
+
+  const objectives = rec(bc.objectives);
+  const successMetrics = arr(objectives.successMetrics);
+
+  const successMetricsByName = new Map<string, Record<string, unknown>>();
+  for (const sm of successMetrics) {
+    const m = rec(sm);
+    const key = normalizeMetricName(str(m.metric));
+    if (key) successMetricsByName.set(key, m);
+  }
+
+  const kpis = arr(rec(bp.successCriteria).kpis);
+  const quantifiedROI = rec(rec(bc.benefits).quantifiedROI);
+  const team = arr(bp.enhancedDigitalTeam);
+
+  let hasContent = false;
+
+  // --- Operational Metrics ---
+  const operationalRows: string[] = [];
+
+  if (roiOps.length > 0) {
+    for (const item of roiOps) {
+      const m = rec(item);
+      const name = str(m.name);
+      const enrichment = successMetricsByName.get(normalizeMetricName(name));
+      const baseline = enrichment ? str(rec(enrichment).currentValue) : '';
+      const frequency = enrichment ? str(rec(enrichment).measurementFrequency) : '';
+      operationalRows.push(
+        `| ${name} | ${baseline || '-'} | ${str(m.predictedValue)} | ${str(m.direction) || '-'} | ${str(m.unit) || '-'} | ${frequency || '-'} | ${str(m.source)} |`
+      );
+    }
+  } else if (successMetrics.length > 0) {
+    for (const item of successMetrics) {
+      const m = rec(item);
+      operationalRows.push(
+        `| ${str(m.metric)} | ${str(m.currentValue) || '-'} | ${str(m.targetValue)} | ${str(m.direction) || '-'} | ${str(m.unit) || '-'} | ${str(m.measurementFrequency) || '-'} | businessCase.objectives |`
+      );
+    }
+  } else if (kpis.length > 0) {
+    for (const item of kpis) {
+      const m = rec(item);
+      operationalRows.push(
+        `| ${str(m.name)} | - | ${str(m.target)} | - | ${str(m.unit) || '-'} | - | successCriteria.kpis |`
+      );
+    }
+  }
+
+  if (operationalRows.length > 0) {
+    hasContent = true;
+    lines.push(
+      '## Operational Metrics', '',
+      '| Metric | Baseline | Target | Direction | Unit | Frequency | Source |',
+      '|--------|----------|--------|-----------|------|-----------|--------|',
+      ...operationalRows, '',
+    );
+  }
+
+  // --- Financial Metrics ---
+  const financialRows: string[] = [];
+
+  if (roiFin.length > 0) {
+    for (const item of roiFin) {
+      const m = rec(item);
+      financialRows.push(
+        `| ${str(m.name)} | ${str(m.predictedValue)} | ${str(m.direction) || '-'} | ${str(m.unit) || '-'} | ${str(m.source)} |`
+      );
+    }
+  } else {
+    if (str(quantifiedROI.roi)) {
+      financialRows.push(`| ROI | ${str(quantifiedROI.roi)} | higher_is_better | % | quantifiedROI |`);
+    }
+    if (str(quantifiedROI.paybackPeriod)) {
+      financialRows.push(`| Payback Period | ${str(quantifiedROI.paybackPeriod)} | lower_is_better | months | quantifiedROI |`);
+    }
+    if (str(quantifiedROI.npv)) {
+      financialRows.push(`| NPV | ${str(quantifiedROI.npv)} | higher_is_better | currency | quantifiedROI |`);
+    }
+    const annualSavings = str(rec(rec(quantifiedROI.laborCostDetail).projectedSavings).costSavingsAnnual);
+    if (annualSavings) {
+      financialRows.push(`| Annual Cost Savings | ${annualSavings} | higher_is_better | currency | quantifiedROI |`);
+    }
+  }
+
+  if (financialRows.length > 0) {
+    hasContent = true;
+    lines.push(
+      '## Financial Metrics', '',
+      '| Metric | Target | Direction | Unit | Source |',
+      '|--------|--------|-----------|------|--------|',
+      ...financialRows, '',
+    );
+  }
+
+  // --- Agent-Level Metrics ---
+  const agentRows: string[] = [];
+  for (const agent of team) {
+    const a = rec(agent);
+    const metrics = arr(a.successMetrics);
+    for (const item of metrics) {
+      const m = rec(item);
+      agentRows.push(`| ${str(a.name)} | ${str(m.metric)} | ${str(m.target)} |`);
+    }
+  }
+
+  if (agentRows.length > 0) {
+    hasContent = true;
+    lines.push(
+      '## Agent-Level Metrics', '',
+      '| Agent | Metric | Target |',
+      '|-------|--------|--------|',
+      ...agentRows, '',
+    );
+  }
+
+  if (!hasContent) {
+    lines.push(
+      '> No evaluation criteria available yet. Generate a Business Case to populate',
+      '> operational and financial metrics, or add success metrics to agent specifications.',
+      '',
+    );
+  }
+
+  // --- Monitoring Guidance ---
+  lines.push(
+    '## Monitoring Guidance', '',
+    '> If using Agent Blueprint\'s performance monitoring feature, these criteria can inform metric setup:',
+    '> - Operational metrics correspond to `metricType: "operational"`',
+    '> - Financial metrics correspond to `metricType: "financial"`',
+    '> - Use metric names and targets when recording actuals via the Performance tab or webhook integrations',
+    '',
+  );
+
+  return lines.join('\n');
+}
+
 function buildValidateScript(): string {
   return `#!/bin/bash
 # validate-spec.sh — Validates implementation spec structure completeness
@@ -1309,6 +1464,7 @@ check_optional "references/organization-context.md"
 check_optional "references/financial-case.md"
 check_optional "references/implementation-roadmap.md"
 check_optional "references/guardrails-and-governance.md"
+check_optional "references/evaluation-criteria.md"
 
 echo ""
 echo "=== Results ==="
@@ -1349,6 +1505,7 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
   files.set('references/implementation-roadmap.md', buildImplementationRoadmap(input));
   files.set('references/architecture-decisions.md', buildArchitectureDecisions(input));
   files.set('references/guardrails-and-governance.md', buildGuardrailsAndGovernance(input));
+  files.set('references/evaluation-criteria.md', buildEvaluationCriteria(input));
 
   // Scripts
   files.set('scripts/validate-spec.sh', buildValidateScript());
