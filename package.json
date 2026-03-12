@@ -1,5 +1,5 @@
 {
-  "name": "@agentblueprint/mcp-server",
+  "name": "agentblueprint",
   "version": "0.4.0",
   "description": "CLI and MCP server for Agent Blueprint — read blueprints, business cases, implementation plans, and specs from your coding agent",
   "type": "module",

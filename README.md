@@ -1,4 +1,4 @@
-# @agentblueprint/mcp-server
+# agentblueprint
 
 CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — gives your coding agent read access to your AI blueprints, business cases, implementation plans, and specs.
 
@@ -6,7 +6,7 @@ CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — give
 
 ```bash
 # Install globally
-npm install -g @agentblueprint/mcp-server
+npm install -g agentblueprint
 
 # Store your API token (one-time)
 agentblueprint login
@@ -35,8 +35,8 @@ agentblueprint get blueprint <id> --org <customer-org-id>
 Or run without installing via npx:
 
 ```bash
-npx @agentblueprint/mcp-server list --token <your-api-key>
-npx @agentblueprint/mcp-server get blueprint <id> --token <your-api-key>
+npx agentblueprint list --token <your-api-key>
+npx agentblueprint get blueprint <id> --token <your-api-key>
 ```
 
 ## MCP Server Setup
@@ -77,7 +77,7 @@ agentblueprint download <id>
 agentblueprint download <id> --dir ./my-skills
 
 # Or via npx
-npx @agentblueprint/mcp-server download --token <key> --blueprint <id>
+npx agentblueprint download --token <key> --blueprint <id>
 ```
 
 This creates an Agent Skills directory structure:
