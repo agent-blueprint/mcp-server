@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 import { AgentBlueprintClient } from './client.js';
 import type { Config } from './config.js';
@@ -123,7 +123,7 @@ async function downloadBlueprint(
   let totalSize = 0;
   for (const [relativePath, content] of files) {
     const fullPath = join(outDir, relativePath);
-    const dir = fullPath.substring(0, fullPath.lastIndexOf('/'));
+    const dir = dirname(fullPath);
     await mkdir(dir, { recursive: true });
     await writeFile(fullPath, content, 'utf-8');
     totalSize += Buffer.byteLength(content, 'utf-8');
