@@ -21,7 +21,8 @@ export interface SkillRenderInput {
 // =============================================================================
 
 export function slugify(input: string): string {
-  const full = input
+  const stripped = input.replace(/^blueprint\s+for\s+/i, '');
+  const full = stripped
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
@@ -29,7 +30,12 @@ export function slugify(input: string): string {
   if (full.length <= 60) return full;
   const trimmed = full.slice(0, 60);
   const lastDash = trimmed.lastIndexOf('-');
-  return lastDash > 20 ? trimmed.slice(0, lastDash) : trimmed;
+  let result = lastDash > 20 ? trimmed.slice(0, lastDash) : trimmed;
+  const TRAILING_STOP = /-(from|for|and|or|the|with|of|in|on|to|by|a|an)$/;
+  while (TRAILING_STOP.test(result)) {
+    result = result.replace(TRAILING_STOP, '');
+  }
+  return result;
 }
 
 function str(val: unknown): string {
@@ -113,11 +119,12 @@ function buildSkillFrontmatter(input: SkillRenderInput): string {
   const pattern = getAgenticPattern(bp);
   const slug = slugify(input.blueprintTitle) || 'implementation-spec';
 
+  const cleanTitle = input.blueprintTitle.replace(/[.!?]+$/, '');
   const lines = [
     '---',
     `name: ${slug}`,
     'description: >-',
-    `  Implementation specification for ${input.blueprintTitle}. ${team.length} AI agents,`,
+    `  Implementation specification for ${cleanTitle}. ${team.length} AI agents,`,
     `  ${pattern} pattern, targeting ${platform}.`,
     'compatibility: Any coding agent (Claude Code, Codex, Cursor).',
     'metadata:',
@@ -1295,7 +1302,13 @@ function buildEvaluationCriteria(input: SkillRenderInput): string {
   let hasContent = false;
 
   // --- Operational Metrics ---
-  const operationalRows: string[] = [];
+  interface OpMetricRow {
+    name: string; baseline: string; target: string;
+    direction: string; unit: string; frequency: string;
+    source: string;
+  }
+  const normalizeTarget = (t: string) => t.replace(/[%$<>~,\s]/g, '');
+  const collectedOps: OpMetricRow[] = [];
 
   if (roiOps.length > 0) {
     for (const item of roiOps) {
@@ -1304,25 +1317,54 @@ function buildEvaluationCriteria(input: SkillRenderInput): string {
       const enrichment = successMetricsByName.get(normalizeMetricName(name));
       const baseline = enrichment ? str(rec(enrichment).currentValue) : '';
       const frequency = enrichment ? str(rec(enrichment).measurementFrequency) : '';
-      operationalRows.push(
-        `| ${name} | ${baseline || '-'} | ${str(m.predictedValue)} | ${str(m.direction) || '-'} | ${str(m.unit) || '-'} | ${frequency || '-'} | ${str(m.source)} |`
-      );
+      collectedOps.push({
+        name, baseline: baseline || '-', target: str(m.predictedValue),
+        direction: str(m.direction) || '-', unit: str(m.unit) || '-',
+        frequency: frequency || '-', source: str(m.source),
+      });
     }
   } else if (successMetrics.length > 0) {
     for (const item of successMetrics) {
       const m = rec(item);
-      operationalRows.push(
-        `| ${str(m.metric)} | ${str(m.currentValue) || '-'} | ${str(m.targetValue)} | ${str(m.direction) || '-'} | ${str(m.unit) || '-'} | ${str(m.measurementFrequency) || '-'} | businessCase.objectives |`
-      );
+      collectedOps.push({
+        name: str(m.metric), baseline: str(m.currentValue) || '-',
+        target: str(m.targetValue), direction: str(m.direction) || '-',
+        unit: str(m.unit) || '-', frequency: str(m.measurementFrequency) || '-',
+        source: 'businessCase.objectives',
+      });
     }
   } else if (kpis.length > 0) {
     for (const item of kpis) {
       const m = rec(item);
-      operationalRows.push(
-        `| ${str(m.name)} | - | ${str(m.target)} | - | ${str(m.unit) || '-'} | - | successCriteria.kpis |`
-      );
+      collectedOps.push({
+        name: str(m.name), baseline: '-', target: str(m.target),
+        direction: '-', unit: str(m.unit) || '-', frequency: '-',
+        source: 'successCriteria.kpis',
+      });
     }
   }
+
+  // Deduplicate: group by (direction, normalizedTarget), keep the row with most non-empty fields
+  const dedupKey = (r: OpMetricRow) => `${r.direction}::${normalizeTarget(r.target)}`;
+  const dedupGroups = new Map<string, OpMetricRow[]>();
+  for (const row of collectedOps) {
+    const k = dedupKey(row);
+    const group = dedupGroups.get(k);
+    if (group) group.push(row);
+    else dedupGroups.set(k, [row]);
+  }
+  const fieldScore = (r: OpMetricRow) =>
+    [r.name, r.baseline, r.target, r.direction, r.unit, r.frequency, r.source]
+      .filter(v => v && v !== '-').length;
+  const dedupedOps: OpMetricRow[] = [];
+  for (const group of dedupGroups.values()) {
+    group.sort((a, b) => fieldScore(b) - fieldScore(a));
+    dedupedOps.push(group[0]);
+  }
+
+  const operationalRows = dedupedOps.map(r =>
+    `| ${r.name} | ${r.baseline} | ${r.target} | ${r.direction} | ${r.unit} | ${r.frequency} | ${r.source} |`
+  );
 
   if (operationalRows.length > 0) {
     hasContent = true;

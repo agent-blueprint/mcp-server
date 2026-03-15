@@ -531,3 +531,81 @@ describe('renderSkillDirectory with missing data', () => {
     expect(financial).toContain('$50K');
   });
 });
+
+describe('slugify edge cases', () => {
+  it('strips "Blueprint for" prefix before slugifying', () => {
+    const result = slugify('Blueprint for Merchant Onboarding Bottleneck from Fragmented Data Access and Legacy Architecture Constraints');
+    expect(result.startsWith('blueprint-for')).toBe(false);
+    expect(result).toContain('merchant-onboarding');
+    expect(result.length).toBeLessThanOrEqual(60);
+  });
+
+  it('strips trailing stop words after truncation', () => {
+    const result = slugify('Blueprint for Merchant Onboarding Bottleneck from Fragmented Data Access and Legacy Architecture Constraints');
+    expect(result).not.toMatch(/-(from|for|and|or|the|with|of|in|on|to|by|a|an)$/);
+  });
+
+  it('preserves short titles with "Blueprint for" prefix', () => {
+    expect(slugify('Blueprint for CRM')).toBe('crm');
+  });
+});
+
+describe('description double period', () => {
+  it('no double period when title ends with period', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintTitle: 'Merchant Onboarding Automation.',
+    };
+    const files = renderSkillDirectory(input);
+    const skill = files.get('SKILL.md')!;
+    expect(skill).not.toContain('Automation.. ');
+    expect(skill).toContain('Automation. 1 AI agents');
+  });
+});
+
+describe('evaluation criteria deduplication', () => {
+  it('deduplicates overlapping operational metrics with same direction and target', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        roiBaseline: {
+          generatedAt: '2026-01-01T00:00:00Z',
+          operational: [
+            { name: 'Instant onboarding share', predictedValue: '70%', unit: '%', direction: 'higher_is_better', source: 'businessCase.objectives' },
+            { name: 'Instant Approval Rate', predictedValue: '70%', unit: '%', direction: 'higher_is_better', source: 'roiBaseline' },
+            { name: 'Manual review rate', predictedValue: '<5%', unit: '%', direction: 'lower_is_better', source: 'businessCase.objectives' },
+          ],
+          financial: [],
+        },
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+    const rows = evalCriteria.split('\n').filter(l => l.startsWith('| ') && !l.startsWith('| Metric') && !l.startsWith('|--'));
+    const seventyPercentRows = rows.filter(r => r.includes('70%'));
+    expect(seventyPercentRows.length).toBe(1);
+    expect(evalCriteria).toContain('Manual review rate');
+  });
+
+  it('keeps metrics with same target but different directions', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        roiBaseline: {
+          generatedAt: '2026-01-01T00:00:00Z',
+          operational: [
+            { name: 'Approval Rate', predictedValue: '90%', unit: '%', direction: 'higher_is_better', source: 'roiBaseline' },
+            { name: 'Rejection Rate', predictedValue: '90%', unit: '%', direction: 'lower_is_better', source: 'roiBaseline' },
+          ],
+          financial: [],
+        },
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+    expect(evalCriteria).toContain('Approval Rate');
+    expect(evalCriteria).toContain('Rejection Rate');
+  });
+});
