@@ -1,6 +1,6 @@
 {
   "name": "agentblueprint",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "CLI and MCP server for Agent Blueprint — read blueprints, business cases, implementation plans, and specs from your coding agent",
   "type": "module",
   "bin": {
