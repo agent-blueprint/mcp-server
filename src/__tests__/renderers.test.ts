@@ -190,8 +190,9 @@ describe('renderSkillDirectory', () => {
     expect(paths).toContain('references/architecture-decisions.md');
     expect(paths).toContain('references/guardrails-and-governance.md');
     expect(paths).toContain('references/evaluation-criteria.md');
+    expect(paths).toContain('GETTING-STARTED.md');
     expect(paths).toContain('scripts/validate-spec.sh');
-    expect(files.size).toBe(10);
+    expect(files.size).toBe(11);
   });
 
   it('SKILL.md starts with YAML frontmatter', () => {
@@ -427,7 +428,7 @@ describe('renderSkillDirectory with missing data', () => {
     };
     // Should not throw
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(10);
+    expect(files.size).toBe(11);
   });
 
   it('SKILL.md renders phases from implementation plan epics', () => {
