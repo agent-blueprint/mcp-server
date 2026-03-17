@@ -14,6 +14,8 @@ export interface SkillRenderInput {
   implementationPlanData?: Record<string, unknown>;
   useCaseData?: Record<string, unknown>;
   businessProfileData?: Record<string, unknown>;
+  generalGuide?: string;
+  vendorGuide?: { platform: string; content: string };
 }
 
 // =============================================================================
@@ -1736,6 +1738,14 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
 
   // Getting Started guide
   files.set('GETTING-STARTED.md', buildGettingStarted(input));
+
+  // Deployment guides
+  if (input.generalGuide) {
+    files.set('references/deployment-guide-general.md', input.generalGuide);
+  }
+  if (input.vendorGuide) {
+    files.set(`references/deployment-guide-${input.vendorGuide.platform}.md`, input.vendorGuide.content);
+  }
 
   // Scripts
   files.set('scripts/validate-spec.sh', buildValidateScript());

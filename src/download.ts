@@ -11,6 +11,7 @@ export interface DownloadArgs {
   dir: string;
   list: boolean;
   customerOrgId?: string;
+  platform?: string;
 }
 
 export function parseDownloadArgs(args: string[]): DownloadArgs {
@@ -33,6 +34,9 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
         break;
       case '--org':
         result.customerOrgId = args[++i];
+        break;
+      case '--platform':
+        result.platform = args[++i];
         break;
       default:
         // Positional arg: treat as blueprint ID if it doesn't start with --
@@ -59,7 +63,7 @@ export async function runDownload(config: Config, args: DownloadArgs): Promise<v
     process.exit(1);
   }
 
-  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId);
+  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId, args.platform);
 }
 
 async function listBlueprints(client: AgentBlueprintClient, customerOrgId?: string): Promise<void> {
@@ -87,7 +91,8 @@ async function downloadBlueprint(
   client: AgentBlueprintClient,
   blueprintId: string,
   baseDir: string,
-  customerOrgId?: string
+  customerOrgId?: string,
+  platform?: string
 ): Promise<void> {
   console.error(`Fetching blueprint ${blueprintId}...`);
 
@@ -104,6 +109,18 @@ async function downloadBlueprint(
     || blueprint.data.blueprintTitle as string
     || `Blueprint ${blueprintId.slice(0, 8)}`;
 
+  // Fetch vendor deployment guides
+  const generalGuideData = await client.getVendorGuide('general');
+  let vendorGuideInput: { platform: string; content: string } | undefined;
+  if (platform && platform !== 'skip') {
+    const vendorGuideData = await client.getVendorGuide(platform);
+    if (vendorGuideData) {
+      vendorGuideInput = { platform: vendorGuideData.platform, content: vendorGuideData.content };
+    } else {
+      console.error(`Warning: No vendor guide found for platform "${platform}". Continuing without it.`);
+    }
+  }
+
   const input: SkillRenderInput = {
     blueprintTitle: title,
     blueprintId,
@@ -112,6 +129,8 @@ async function downloadBlueprint(
     implementationPlanData: implementationPlan?.data,
     useCaseData: useCase as Record<string, unknown> | undefined,
     businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
+    generalGuide: generalGuideData?.content,
+    vendorGuide: vendorGuideInput,
   };
 
   // Render

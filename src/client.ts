@@ -84,6 +84,22 @@ export class AgentBlueprintClient {
       `/blueprints/${encodeURIComponent(blueprintId)}/implementation-spec`, this.orgQuery(customerOrgId)
     );
   }
+
+  async getVendorGuide(platform: string): Promise<VendorGuideResponse | null> {
+    try {
+      const url = new URL(`${this.config.apiUrl}/api/vendor-guide/${encodeURIComponent(platform)}`);
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) return null;
+
+      return (await response.json()) as VendorGuideResponse;
+    } catch {
+      return null;
+    }
+  }
 }
 
 // ─── Response types ────────────────────────────────────────────────
@@ -132,6 +148,13 @@ export interface ImplementationSpecResponse {
     referenceFileCount: number;
     totalFileCount: number;
   };
+}
+
+export interface VendorGuideResponse {
+  platform: string;
+  title: string;
+  content: string;
+  lastVerified: string;
 }
 
 export interface BusinessProfile {

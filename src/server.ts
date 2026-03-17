@@ -80,7 +80,11 @@ export function createServer(config: Config): McpServer {
   server.tool(
     'download_blueprint',
     'Download a blueprint as an Agent Skills directory. Returns a JSON manifest with all files (SKILL.md, reference docs, scripts) that can be written to disk for any coding agent to consume. Use this instead of reading full blueprint/business-case/plan data via individual tools.',
-    { blueprintId: z.string().describe('The blueprint ID (UUID)'), customerOrgId: customerOrgParam },
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      customerOrgId: customerOrgParam,
+      platform: z.string().optional().describe("Target deployment platform (e.g., 'servicenow', 'openclaw'). Includes a platform-specific deployment guide."),
+    },
     async (args) => handleDownloadBlueprint(client, args)
   );
 

@@ -5,7 +5,7 @@ import type { SkillRenderInput } from '../renderers.js';
 
 export async function handleDownloadBlueprint(
   client: AgentBlueprintClient,
-  args: { blueprintId: string; customerOrgId?: string }
+  args: { blueprintId: string; customerOrgId?: string; platform?: string }
 ) {
   try {
     const orgId = args.customerOrgId;
@@ -23,6 +23,16 @@ export async function handleDownloadBlueprint(
       || (bpData.blueprintTitle as string)
       || `Blueprint ${args.blueprintId.slice(0, 8)}`;
 
+    // Fetch vendor deployment guides
+    const generalGuideData = await client.getVendorGuide('general');
+    let vendorGuideInput: { platform: string; content: string } | undefined;
+    if (args.platform) {
+      const vendorGuideData = await client.getVendorGuide(args.platform);
+      if (vendorGuideData) {
+        vendorGuideInput = { platform: vendorGuideData.platform, content: vendorGuideData.content };
+      }
+    }
+
     const input: SkillRenderInput = {
       blueprintTitle: title,
       blueprintId: args.blueprintId,
@@ -31,6 +41,8 @@ export async function handleDownloadBlueprint(
       implementationPlanData: implementationPlan?.data,
       useCaseData: useCase as Record<string, unknown> | undefined,
       businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
+      generalGuide: generalGuideData?.content,
+      vendorGuide: vendorGuideInput,
     };
 
     const files = renderSkillDirectory(input);
