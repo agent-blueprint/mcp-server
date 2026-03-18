@@ -1493,16 +1493,15 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 2
   lines.push('## Step 2: Connect to the target platform');
   lines.push('');
-  lines.push('Ask the user how they want to connect:');
+  lines.push('The recommended approach is to use a platform MCP server. Ask the user:');
+  lines.push('"Do you have a ServiceNow MCP server configured? This is the fastest way to');
+  lines.push('deploy. If you don\'t have one yet, I can help you set one up in a few minutes."');
   lines.push('');
-  lines.push('1. **MCP server** (recommended) -- ask if they already have a platform MCP server');
-  lines.push('   configured. If yes, use its tools directly. If they don\'t have one, offer');
-  lines.push('   to help them set one up -- read `references/platform-connectivity.md` for');
-  lines.push('   recommended servers with install commands, then walk them through it.');
-  lines.push('2. **REST API or CLI** -- if they prefer not to set up an MCP server, ask for');
-  lines.push('   instance URL and credentials. Use the platform\'s REST API or CLI tools directly.');
-  lines.push('3. **Step-by-step instructions** -- if they have no API access, generate');
-  lines.push('   detailed instructions they can follow in the platform UI.');
+  lines.push('- **If they have one**: use its tools directly.');
+  lines.push('- **If they want to set one up**: read `references/platform-connectivity.md`');
+  lines.push('  for recommended servers and install commands, then walk them through setup.');
+  lines.push('- **If they prefer REST API**: ask for instance URL and credentials.');
+  lines.push('- **If they have no API access**: generate step-by-step instructions for the UI.');
   lines.push('');
   lines.push('If `references/deployment-guide-*.md` files are present, read those for');
   lines.push('platform-specific tooling, deployment sequence, and gotchas.');
