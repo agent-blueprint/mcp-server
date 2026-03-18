@@ -1494,6 +1494,9 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('## Step 2: Connect to the target platform');
   lines.push('');
   lines.push('Ask the user for their target platform credentials (instance URL, API key, etc.).');
+  lines.push('Confirm this is a development or sandbox environment, not production.');
+  lines.push('If they provide a production instance, warn them and ask to confirm before proceeding.');
+  lines.push('');
   lines.push('Use whatever access method is available, in order of preference:');
   lines.push('');
   lines.push('1. **Platform MCP server** (recommended) -- if one is configured, use its tools directly.');
