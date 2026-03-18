@@ -1493,22 +1493,19 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 2
   lines.push('## Step 2: Connect to the target platform');
   lines.push('');
-  lines.push('Ask the user for their target platform credentials (instance URL, API key, etc.).');
-  lines.push('Use whatever access method is available, in order of preference:');
+  lines.push('Ask the user how they want to connect:');
   lines.push('');
-  lines.push('1. **Platform SDK or CLI** -- if the platform has a code-first development kit,');
-  lines.push('   write agent definitions as code, then build and deploy from the CLI.');
-  lines.push('   This enables the fastest iteration loop: write, deploy, test, fix, redeploy.');
-  lines.push('2. **Platform MCP server** -- if one is configured, use its tools for structured access.');
-  lines.push('3. **REST API** -- most platforms expose CRUD via REST. Use it to create agent records,');
-  lines.push('   tables, scripts, and configuration directly.');
-  lines.push('4. **Browser automation** -- for visual configuration (flow builders, agent studios)');
-  lines.push('   that cannot be done via API, use browser automation as a fallback.');
-  lines.push('5. **Step-by-step instructions** -- if none of the above are available, generate');
-  lines.push('   detailed instructions the user can follow in the platform UI.');
+  lines.push('1. **MCP server** (recommended) -- ask if they already have a platform MCP server');
+  lines.push('   configured. If yes, use its tools directly. If not, read');
+  lines.push('   `references/platform-connectivity.md` yourself for recommended MCP servers');
+  lines.push('   and install instructions, then guide the user through setup.');
+  lines.push('2. **REST API or CLI** -- if they prefer not to set up an MCP server, ask for');
+  lines.push('   instance URL and credentials. Use the platform\'s REST API or CLI tools directly.');
+  lines.push('3. **Step-by-step instructions** -- if they have no API access, generate');
+  lines.push('   detailed instructions they can follow in the platform UI.');
   lines.push('');
   lines.push('If `references/deployment-guide-*.md` files are present, read those for');
-  lines.push('platform-specific connection and deployment instructions.');
+  lines.push('platform-specific tooling, deployment sequence, and gotchas.');
   lines.push('');
 
   // Step 3
