@@ -1496,9 +1496,9 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('Ask the user how they want to connect:');
   lines.push('');
   lines.push('1. **MCP server** (recommended) -- ask if they already have a platform MCP server');
-  lines.push('   configured. If yes, use its tools directly. If not, read');
-  lines.push('   `references/platform-connectivity.md` yourself for recommended MCP servers');
-  lines.push('   and install instructions, then guide the user through setup.');
+  lines.push('   configured. If yes, use its tools directly. If they don\'t have one, offer');
+  lines.push('   to help them set one up -- read `references/platform-connectivity.md` for');
+  lines.push('   recommended servers with install commands, then walk them through it.');
   lines.push('2. **REST API or CLI** -- if they prefer not to set up an MCP server, ask for');
   lines.push('   instance URL and credentials. Use the platform\'s REST API or CLI tools directly.');
   lines.push('3. **Step-by-step instructions** -- if they have no API access, generate');
