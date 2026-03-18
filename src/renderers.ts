@@ -1478,6 +1478,16 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('> This guide is written for your coding agent. You can also read it yourself,');
   lines.push('> but the primary audience is the AI assistant that will implement this blueprint.');
   lines.push('');
+  lines.push('## Ground rules');
+  lines.push('');
+  lines.push('- **Verify before presenting.** Never give the user a URL, path, command, or');
+  lines.push('  configuration value you have not verified. Query the platform, search the');
+  lines.push('  official docs, or test it yourself first. If you cannot verify, say so.');
+  lines.push('- **Use the platform as source of truth.** Query the actual instance for schemas,');
+  lines.push('  field names, navigation paths, and versions rather than assuming from memory.');
+  lines.push('- **Search official docs for platform-specific questions.** Release notes, API');
+  lines.push('  references, and vendor guides are more reliable than training data.');
+  lines.push('');
 
   // Step 1
   lines.push('## Step 1: Understand the architecture');
