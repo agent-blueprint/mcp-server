@@ -137,8 +137,11 @@ function buildSkillFrontmatter(input: SkillRenderInput): string {
     `  agent-count: "${team.length}"`,
     `  pattern: "${pattern}"`,
     `  investment-tier: "${getInvestmentTier(input.blueprintData, input.businessCaseData)}"`,
-    '---',
   ];
+  if (input.vendorGuide) {
+    lines.push(`  deployment-guide: "${input.vendorGuide.platform}"`);
+  }
+  lines.push('---');
   return lines.join('\n');
 }
 
@@ -184,6 +187,16 @@ function buildSkillBody(input: SkillRenderInput): string {
   lines.push(`- **Platform:** ${platform}`);
   lines.push(`- **Pattern:** ${pattern}`);
   lines.push(`- **Agents:** ${team.length}`, '');
+
+  if (input.vendorGuide) {
+    const guideFilename = `references/deployment-guide-${input.vendorGuide.platform}.md`;
+    const platformLabel = input.vendorGuide.platform.charAt(0).toUpperCase() + input.vendorGuide.platform.slice(1);
+    lines.push(
+      `> A ${platformLabel} deployment guide is included in this export.`,
+      `> See \`${guideFilename}\` for platform-specific implementation instructions.`,
+      '',
+    );
+  }
 
   // Agent summary table
   lines.push('| # | Agent | Role | Type |');
@@ -1494,6 +1507,9 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('5. **Step-by-step instructions** -- if none of the above are available, generate');
   lines.push('   detailed instructions the user can follow in the platform UI.');
   lines.push('');
+  lines.push('If `references/deployment-guide-*.md` files are present, read those for');
+  lines.push('platform-specific connection and deployment instructions.');
+  lines.push('');
 
   // Step 3
   lines.push('## Step 3: Start with the pilot');
@@ -1501,7 +1517,10 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('Check `references/implementation-roadmap.md` for Phase 1 scope.');
   lines.push('Build the lead agent first. Validate it works before expanding to the full team.');
   lines.push('');
-  lines.push('General pattern:');
+  lines.push('If a vendor deployment guide is included (`references/deployment-guide-*.md`),');
+  lines.push('follow its deployment sequence instead of the general pattern below.');
+  lines.push('');
+  lines.push('General pattern (fallback when no deployment guide is present):');
   lines.push('1. Create the data model (tables, fields, relationships) for the pilot scope');
   lines.push('2. Build the first worker agent with its tools and instructions');
   lines.push('3. Add seed or test data to exercise the agent');
@@ -1627,6 +1646,19 @@ check_optional "references/evaluation-criteria.md"
 check_optional "references/platform-connectivity.md"
 
 echo ""
+echo "--- Deployment Guides ---"
+GUIDE_COUNT=0
+for guide in references/deployment-guide-*.md; do
+  if [ -f "$guide" ]; then
+    echo "OK: $guide"
+    GUIDE_COUNT=$((GUIDE_COUNT + 1))
+  fi
+done
+if [ $GUIDE_COUNT -eq 0 ]; then
+  echo "INFO: No deployment guides found (references/deployment-guide-*.md)"
+fi
+
+echo ""
 echo "=== Results ==="
 echo "Errors: $ERRORS"
 echo "Warnings: $WARNINGS"
@@ -1661,8 +1693,8 @@ function buildPlatformConnectivity(): string {
     '',
     '## ServiceNow',
     '',
-    '- **Recommended**: @sonisoft/now-sdk-ext-cli (`nex`) + nowsdk-ext-mcp (80+ tools)',
-    '- **Also**: ServiceNow Fluent SDK for code-first development (write TypeScript, build, deploy)',
+    '- **Recommended**: ServiceNow MCP server (official) + ServiceNow Fluent SDK for code-first development',
+    '- **Also**: nowsdk-ext-mcp (community, by Sonisoft) -- 80+ tools wrapping the ServiceNow SDK',
     '- **REST API**: Table API for record CRUD, Background Scripts for bulk operations',
     '- **Note**: API-created records may land in global scope. Check scoped app deployment docs.',
     '',
