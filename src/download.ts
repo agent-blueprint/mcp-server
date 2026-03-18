@@ -87,6 +87,30 @@ async function listBlueprints(client: AgentBlueprintClient, customerOrgId?: stri
   console.error(`Use: agentblueprint download <id>`);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolves a blueprint ID that may be a short prefix (e.g. "dbbf3118")
+ * into a full UUID by listing blueprints and matching.
+ */
+async function resolveId(client: AgentBlueprintClient, input: string, customerOrgId?: string): Promise<string> {
+  if (UUID_RE.test(input)) return input;
+
+  const prefix = input.toLowerCase();
+  const blueprints = await client.listBlueprints(customerOrgId);
+  const matches = blueprints.filter(bp => bp.id.toLowerCase().startsWith(prefix));
+
+  if (matches.length === 1) {
+    console.error(`Resolved "${input}" → ${matches[0].id}`);
+    return matches[0].id;
+  }
+  if (matches.length === 0) {
+    throw new Error(`No blueprint found matching prefix "${input}". Use --list to see available blueprints.`);
+  }
+  const ids = matches.map(m => `  ${m.id}  ${m.title}`).join('\n');
+  throw new Error(`Prefix "${input}" is ambiguous (${matches.length} matches):\n${ids}\nUse a longer prefix or the full ID.`);
+}
+
 async function downloadBlueprint(
   client: AgentBlueprintClient,
   blueprintId: string,
@@ -94,6 +118,7 @@ async function downloadBlueprint(
   customerOrgId?: string,
   platform?: string
 ): Promise<void> {
+  blueprintId = await resolveId(client, blueprintId, customerOrgId);
   console.error(`Fetching blueprint ${blueprintId}...`);
 
   // Fetch all data in parallel
