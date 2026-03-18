@@ -4,7 +4,7 @@ import { createInterface } from 'node:readline';
 import { createRequire } from 'node:module';
 
 import { AgentBlueprintClient } from './client.js';
-import { loadConfig } from './config.js';
+import { loadConfig, type Config } from './config.js';
 import { formatError } from './errors.js';
 import { parseDownloadArgs, runDownload } from './download.js';
 import { saveToken } from './token-store.js';
@@ -186,7 +186,15 @@ async function cmdGet(args: string[]): Promise<void> {
 
 async function cmdDownload(args: string[]): Promise<void> {
   const token = findFlag(args, '--token');
-  const config = loadConfig(token);
+  let config: Config;
+  try {
+    config = loadConfig(token);
+  } catch {
+    // No token found — auto-trigger login
+    console.error('No API key found. Starting login...\n');
+    await cmdLogin(args.filter(a => a !== '--token'));
+    config = loadConfig();
+  }
   const downloadArgs = parseDownloadArgs(args.filter(a => a !== '--token' && args[args.indexOf(a) - 1] !== '--token'));
   await runDownload(config, downloadArgs);
 }
