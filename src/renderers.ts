@@ -1493,15 +1493,16 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 2
   lines.push('## Step 2: Connect to the target platform');
   lines.push('');
-  lines.push('The recommended approach is to use a platform MCP server. Ask the user:');
-  lines.push('"Do you have a ServiceNow MCP server configured? This is the fastest way to');
-  lines.push('deploy. If you don\'t have one yet, I can help you set one up in a few minutes."');
+  lines.push('Ask the user for their target platform credentials (instance URL, API key, etc.).');
+  lines.push('Use whatever access method is available, in order of preference:');
   lines.push('');
-  lines.push('- **If they have one**: use its tools directly.');
-  lines.push('- **If they want to set one up**: read `references/platform-connectivity.md`');
-  lines.push('  for recommended servers and install commands, then walk them through setup.');
-  lines.push('- **If they prefer REST API**: ask for instance URL and credentials.');
-  lines.push('- **If they have no API access**: generate step-by-step instructions for the UI.');
+  lines.push('1. **Platform MCP server** (recommended) -- if one is configured, use its tools directly.');
+  lines.push('   If the user doesn\'t have one, check `references/platform-connectivity.md` for');
+  lines.push('   recommended servers and help them set one up.');
+  lines.push('2. **Platform SDK or CLI** -- if the platform has a code-first development kit.');
+  lines.push('3. **REST API** -- most platforms expose CRUD via REST.');
+  lines.push('4. **Step-by-step instructions** -- if none of the above are available, generate');
+  lines.push('   detailed instructions the user can follow in the platform UI.');
   lines.push('');
   lines.push('If `references/deployment-guide-*.md` files are present, read those for');
   lines.push('platform-specific tooling, deployment sequence, and gotchas.');
@@ -1689,14 +1690,9 @@ function buildPlatformConnectivity(): string {
     '',
     '## ServiceNow',
     '',
-    '- **Recommended MCP server**: [nowsdk-ext-mcp](https://github.com/sonisoft-cnanda/nowsdk-ext-mcp) (community, by Sonisoft) -- 70+ tools including `execute_script`, `batch_create_records`, `query_table`, flow testing, update sets, and more. Wraps the official `@servicenow/sdk`.',
-    '  - Install: `npm install -g @sonisoft/now-sdk-ext-cli` then `nex mcp` to start the server',
-    '  - Auth: `now-sdk auth --add` to configure instance credentials',
-    '  - Add to your MCP config: `{ "command": "npx", "args": ["-y", "@sonisoft/now-sdk-ext-cli", "mcp"] }`',
-    '- **Other community MCP servers**: [servicenow-mcp](https://github.com/michaelbuckner/servicenow-mcp) (REST-based, simpler), [mcp-servicenow-nodejs](https://github.com/Happy-Technologies-LLC/mcp-servicenow-nodejs) (multi-instance)',
-    '- **CLI**: `now-sdk` CLI for code-first flow development (Fluent API supports flows, not subflows)',
-    '- **REST API**: Table API for record CRUD, Background Scripts for bulk operations',
-    '- **No MCP server?** The agent can fall back to REST API calls via `curl` or the platform\'s Table API. Ask the user for instance URL and credentials.',
+    '- **Recommended MCP server**: https://github.com/sonisoft-cnanda/nowsdk-ext-mcp',
+    '- **Alternatives**: https://github.com/michaelbuckner/servicenow-mcp, https://github.com/Happy-Technologies-LLC/mcp-servicenow-nodejs',
+    '- **No MCP server?** Fall back to REST API (Table API for CRUD, `/sys.scripts.do` for bulk operations). Ask the user for instance URL and credentials.',
     '',
     '## OpenClaw',
     '',
