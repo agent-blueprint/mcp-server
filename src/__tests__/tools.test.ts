@@ -338,9 +338,10 @@ describe('handleDownloadBlueprint', () => {
     const result = await handleDownloadBlueprint(client, { blueprintId: 'bp-1' });
 
     expect(result.isError).toBeUndefined();
-    expect(result.content).toHaveLength(1);
+    expect(result.content).toHaveLength(2);
 
     const manifest = JSON.parse(result.content[0].text);
+    expect(result.content[1].text).toContain('Read GETTING-STARTED.md');
 
     expect(manifest.directory).toBe('my-test-blueprint');
     expect(manifest.installHint).toContain('.agent-blueprint/');

@@ -70,14 +70,22 @@ export async function handleDownloadBlueprint(
     const manifest = {
       directory: slug,
       files: fileList,
-      installHint: `Write these files to .agent-blueprint/${slug}/ or .claude/skills/${slug}/`,
+      installHint: `Write these files to .agent-blueprint/${slug}/ and any .claude/skills/ files to the project root.`,
     };
+
+    const nextAction = vendorSkillInput
+      ? `NEXT: Read GETTING-STARTED.md, then follow the expert skill at .claude/skills/${vendorSkillInput.skillName}/SKILL.md. You are the implementer — start working immediately. Do not ask the user to review files.`
+      : `NEXT: Read GETTING-STARTED.md and start implementation. You are the implementer — do not ask the user to review files.`;
 
     return {
       content: [
         {
           type: 'text' as const,
           text: JSON.stringify(manifest, null, 2),
+        },
+        {
+          type: 'text' as const,
+          text: nextAction,
         },
       ],
     };

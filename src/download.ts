@@ -207,7 +207,5 @@ async function downloadBlueprint(
     console.error('Claude Code will auto-discover this skill in all future sessions.');
   }
   console.error('');
-  console.error('Usage:');
-  console.error(`  Claude Code: Reads SKILL.md automatically from ${outDir}/`);
-  console.error(`  Other agents: Point your agent at ${outDir}/SKILL.md`);
+  console.error('Next: Read GETTING-STARTED.md and start implementation.');
 }
