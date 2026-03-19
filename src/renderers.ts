@@ -1521,26 +1521,21 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 2
   lines.push('## Step 2: Connect to the target platform');
   lines.push('');
-  lines.push('1. **Ask the user for the target instance.** Get the instance URL and credentials.');
+  lines.push('1. **Ask the user for the target instance** (URL and credentials).');
   lines.push('   Confirm this is a development or sandbox instance, not production.');
-  lines.push('   If they provide a production instance, warn them and ask to confirm.');
-  lines.push('2. **Check if you already have a platform MCP server configured.** Look in your');
-  lines.push('   available tools for a matching MCP server (e.g., ServiceNow, Salesforce).');
-  lines.push('3. **If you have an MCP server, verify it points to the RIGHT instance.**');
-  lines.push('   Run a health check and compare the instance name against what the user gave you.');
-  lines.push('   MCP servers can be pre-configured for a different instance. If they do not match,');
-  lines.push('   tell the user immediately -- do not proceed against the wrong instance.');
-  lines.push('4. **If no MCP server is configured**, check `references/platform-connectivity.md`');
-  lines.push('   for setup instructions and help the user configure one.');
+  lines.push('2. **Verify you are connected to the correct instance** before making any changes.');
   lines.push('');
   if (input.vendorSkill) {
     const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
     lines.push(`A ${platformLabel} expert skill has been installed at \`.claude/skills/${input.vendorSkill.skillName}/\`.`);
-    lines.push('It will be auto-loaded for platform-specific tasks including tooling, deployment,');
-    lines.push('and debugging guidance.');
+    lines.push('It contains the connection verification steps, deployment sequence, platform');
+    lines.push('patterns, and debugging guidance. Follow it for all platform-specific work.');
   } else {
     lines.push('If `references/deployment-guide-*.md` files are present, read those for');
     lines.push('platform-specific tooling, deployment sequence, and gotchas.');
+    lines.push('');
+    lines.push('If no deployment guide is present, check `references/platform-connectivity.md`');
+    lines.push('for setup instructions.');
   }
   lines.push('');
 
