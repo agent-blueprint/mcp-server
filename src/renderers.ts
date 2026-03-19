@@ -1485,23 +1485,26 @@ function buildGettingStarted(input: SkillRenderInput): string {
 
   lines.push('# Getting Started');
   lines.push('');
-  lines.push('> This guide is written for your coding agent. You can also read it yourself,');
-  lines.push('> but the primary audience is the AI assistant that will implement this blueprint.');
+  lines.push('YOU ARE THE IMPLEMENTER. This guide tells you what to do. Do not summarize');
+  lines.push('this blueprint back to the user. Do not ask the user to review files. Read');
+  lines.push('the spec, connect to the platform, and start building.');
   lines.push('');
-  lines.push('## Ground rules');
+  lines.push('## Ground rules (MUST FOLLOW)');
   lines.push('');
-  lines.push('- **Be decisive.** When you know the right approach, state it and act. Do not');
-  lines.push('  ask the user to choose between options you already know the answer to.');
-  lines.push('  Recommend the best path, explain why in one line, and proceed.');
+  lines.push('- **Do not summarize the blueprint.** The user already knows what they bought.');
+  lines.push('  Do not list agents, describe the architecture, or restate the problem.');
+  lines.push('  Go straight to connecting and building.');
+  lines.push('- **Do not ask questions you can answer yourself.** Check your configured MCP');
+  lines.push('  servers, read the spec files, query the platform. Only ask the user when');
+  lines.push('  you genuinely cannot proceed without their input.');
   lines.push('- **Act, then report.** Do not narrate what you are about to do. Do it, then');
-  lines.push('  summarize what you did and what comes next.');
+  lines.push('  tell the user what you did and what comes next. One short status per milestone.');
+  lines.push('- **Be decisive.** When you know the right approach, take it. Do not present');
+  lines.push('  options and ask the user to choose. Recommend and act.');
   lines.push('- **Recover fast.** When something fails, try the obvious fix immediately.');
-  lines.push('  Do not spiral into diagnostic rabbit holes. One fix, one alternative, then ask.');
-  lines.push('- **Verify before presenting.** Never give the user a URL, path, command, or');
-  lines.push('  configuration value you have not verified. Query the platform, search the');
-  lines.push('  official docs, or test it yourself first. If you cannot verify, say so.');
-  lines.push('- **Use the platform as source of truth.** Query the actual instance for schemas,');
-  lines.push('  field names, navigation paths, and versions rather than assuming from memory.');
+  lines.push('  One fix, one alternative, then ask. Do not spiral.');
+  lines.push('- **Verify before presenting.** Never give the user a URL, path, or command');
+  lines.push('  you have not verified against the actual platform instance.');
   lines.push('');
 
   // Step 1
@@ -1518,19 +1521,17 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 2
   lines.push('## Step 2: Connect to the target platform');
   lines.push('');
-  lines.push('Ask the user for their target platform credentials (instance URL, API key, etc.).');
-  lines.push('Confirm this is a development or sandbox environment, not production.');
-  lines.push('If they provide a production instance, warn them and ask to confirm before proceeding.');
-  lines.push('');
-  lines.push('Use whatever access method is available, in order of preference:');
-  lines.push('');
-  lines.push('1. **Platform MCP server** (recommended) -- if one is configured, use its tools directly.');
-  lines.push('   If the user doesn\'t have one, check `references/platform-connectivity.md` for');
-  lines.push('   recommended servers and help them set one up.');
-  lines.push('2. **Platform SDK or CLI** -- if the platform has a code-first development kit.');
-  lines.push('3. **REST API** -- most platforms expose CRUD via REST.');
-  lines.push('4. **Step-by-step instructions** -- if none of the above are available, generate');
-  lines.push('   detailed instructions the user can follow in the platform UI.');
+  lines.push('1. **Ask the user for the target instance.** Get the instance URL and credentials.');
+  lines.push('   Confirm this is a development or sandbox instance, not production.');
+  lines.push('   If they provide a production instance, warn them and ask to confirm.');
+  lines.push('2. **Check if you already have a platform MCP server configured.** Look in your');
+  lines.push('   available tools for a matching MCP server (e.g., ServiceNow, Salesforce).');
+  lines.push('3. **If you have an MCP server, verify it points to the RIGHT instance.**');
+  lines.push('   Run a health check and compare the instance name against what the user gave you.');
+  lines.push('   MCP servers can be pre-configured for a different instance. If they do not match,');
+  lines.push('   tell the user immediately -- do not proceed against the wrong instance.');
+  lines.push('4. **If no MCP server is configured**, check `references/platform-connectivity.md`');
+  lines.push('   for setup instructions and help the user configure one.');
   lines.push('');
   if (input.vendorSkill) {
     const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
