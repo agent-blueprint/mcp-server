@@ -1521,9 +1521,12 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 2
   lines.push('## Step 2: Connect to the target platform');
   lines.push('');
-  lines.push('1. **Ask the user for the target instance** (URL and credentials).');
-  lines.push('   Confirm this is a development or sandbox instance, not production.');
-  lines.push('2. **Verify you are connected to the correct instance** before making any changes.');
+  lines.push('Ask the user where they want to deploy this. Three scenarios:');
+  lines.push('');
+  lines.push('**A. User has a platform and instance ready** (e.g., ServiceNow, Salesforce):');
+  lines.push('1. Get the instance URL and credentials.');
+  lines.push('2. Confirm this is a development or sandbox instance, not production.');
+  lines.push('3. Verify you are connected to the correct instance before making any changes.');
   lines.push('');
   if (input.vendorSkill) {
     const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
@@ -1533,10 +1536,21 @@ function buildGettingStarted(input: SkillRenderInput): string {
   } else {
     lines.push('If `references/deployment-guide-*.md` files are present, read those for');
     lines.push('platform-specific tooling, deployment sequence, and gotchas.');
-    lines.push('');
-    lines.push('If no deployment guide is present, check `references/platform-connectivity.md`');
-    lines.push('for setup instructions.');
   }
+  lines.push('');
+  lines.push('**B. User wants to build from scratch** (custom code, open-source frameworks):');
+  lines.push('Help them choose a framework based on the blueprint architecture. Search the web');
+  lines.push('for current agentic AI frameworks and their capabilities -- this space moves fast');
+  lines.push('and your training data may be outdated. Consider the blueprint\'s orchestration');
+  lines.push('pattern (manager-workers, parallel tasks, tool use) when recommending. Common');
+  lines.push('options include LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, and Claude Agent');
+  lines.push('SDK, but search for what is current before recommending.');
+  lines.push('');
+  lines.push('**C. User is unsure what platform to use:**');
+  lines.push('Ask about their existing tech stack, budget, and team skills. Search the web for');
+  lines.push('current agentic AI platforms that fit their constraints. Compare options and');
+  lines.push('recommend one. The blueprint is vendor-agnostic -- it can be deployed to any');
+  lines.push('platform that supports AI agents with tool use.');
   lines.push('');
 
   // Step 3
