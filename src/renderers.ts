@@ -1490,13 +1490,18 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('');
   lines.push('## Ground rules');
   lines.push('');
+  lines.push('- **Be decisive.** When you know the right approach, state it and act. Do not');
+  lines.push('  ask the user to choose between options you already know the answer to.');
+  lines.push('  Recommend the best path, explain why in one line, and proceed.');
+  lines.push('- **Act, then report.** Do not narrate what you are about to do. Do it, then');
+  lines.push('  summarize what you did and what comes next.');
+  lines.push('- **Recover fast.** When something fails, try the obvious fix immediately.');
+  lines.push('  Do not spiral into diagnostic rabbit holes. One fix, one alternative, then ask.');
   lines.push('- **Verify before presenting.** Never give the user a URL, path, command, or');
   lines.push('  configuration value you have not verified. Query the platform, search the');
   lines.push('  official docs, or test it yourself first. If you cannot verify, say so.');
   lines.push('- **Use the platform as source of truth.** Query the actual instance for schemas,');
   lines.push('  field names, navigation paths, and versions rather than assuming from memory.');
-  lines.push('- **Search official docs for platform-specific questions.** Release notes, API');
-  lines.push('  references, and vendor guides are more reliable than training data.');
   lines.push('');
 
   // Step 1
