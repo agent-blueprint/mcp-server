@@ -100,6 +100,22 @@ export class AgentBlueprintClient {
       return null;
     }
   }
+
+  async getVendorSkill(platform: string): Promise<VendorSkillResponse | null> {
+    try {
+      const url = new URL(`${this.config.apiUrl}/api/vendor-skill/${encodeURIComponent(platform)}`);
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) return null;
+
+      return (await response.json()) as VendorSkillResponse;
+    } catch {
+      return null;
+    }
+  }
 }
 
 // ─── Response types ────────────────────────────────────────────────
@@ -153,6 +169,13 @@ export interface ImplementationSpecResponse {
 export interface VendorGuideResponse {
   platform: string;
   title: string;
+  content: string;
+  lastVerified: string;
+}
+
+export interface VendorSkillResponse {
+  platform: string;
+  skillName: string;
   content: string;
   lastVerified: string;
 }

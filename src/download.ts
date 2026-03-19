@@ -134,15 +134,27 @@ async function downloadBlueprint(
     || blueprint.data.blueprintTitle as string
     || `Blueprint ${blueprintId.slice(0, 8)}`;
 
-  // Fetch vendor deployment guides
+  // Fetch vendor deployment guides and expert skills
   const generalGuideData = await client.getVendorGuide('general');
   let vendorGuideInput: { platform: string; content: string } | undefined;
+  let vendorSkillInput: { platform: string; skillName: string; content: string } | undefined;
   if (platform && platform !== 'skip') {
-    const vendorGuideData = await client.getVendorGuide(platform);
-    if (vendorGuideData) {
-      vendorGuideInput = { platform: vendorGuideData.platform, content: vendorGuideData.content };
+    // Try vendor skill first (replaces vendor guide when present)
+    const vendorSkillData = await client.getVendorSkill(platform);
+    if (vendorSkillData) {
+      vendorSkillInput = {
+        platform: vendorSkillData.platform,
+        skillName: vendorSkillData.skillName,
+        content: vendorSkillData.content,
+      };
     } else {
-      console.error(`Warning: No vendor guide found for platform "${platform}". Continuing without it.`);
+      // Fall back to vendor deployment guide
+      const vendorGuideData = await client.getVendorGuide(platform);
+      if (vendorGuideData) {
+        vendorGuideInput = { platform: vendorGuideData.platform, content: vendorGuideData.content };
+      } else {
+        console.error(`Warning: No vendor skill or guide found for platform "${platform}". Continuing without it.`);
+      }
     }
   }
 
@@ -156,6 +168,7 @@ async function downloadBlueprint(
     businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
     generalGuide: generalGuideData?.content,
     vendorGuide: vendorGuideInput,
+    vendorSkill: vendorSkillInput,
   };
 
   // Render
@@ -166,7 +179,9 @@ async function downloadBlueprint(
   // Write files
   let totalSize = 0;
   for (const [relativePath, content] of files) {
-    const fullPath = join(outDir, relativePath);
+    // Vendor skill files go to project root (not inside outDir)
+    const isSkillFile = relativePath.startsWith('.claude/skills/');
+    const fullPath = isSkillFile ? join(process.cwd(), relativePath) : join(outDir, relativePath);
     const dir = dirname(fullPath);
     await mkdir(dir, { recursive: true });
     await writeFile(fullPath, content, 'utf-8');
@@ -180,7 +195,16 @@ async function downloadBlueprint(
   console.error('');
   console.error('Files:');
   for (const [path] of files) {
-    console.error(`  ${path}`);
+    if (path.startsWith('.claude/skills/')) {
+      console.error(`  ${path} (project root)`);
+    } else {
+      console.error(`  ${path}`);
+    }
+  }
+  if (vendorSkillInput) {
+    console.error('');
+    console.error(`Expert skill installed: .claude/skills/${vendorSkillInput.skillName}/SKILL.md`);
+    console.error('Claude Code will auto-discover this skill in all future sessions.');
   }
   console.error('');
   console.error('Usage:');

@@ -23,13 +23,25 @@ export async function handleDownloadBlueprint(
       || (bpData.blueprintTitle as string)
       || `Blueprint ${args.blueprintId.slice(0, 8)}`;
 
-    // Fetch vendor deployment guides
+    // Fetch vendor deployment guides and expert skills
     const generalGuideData = await client.getVendorGuide('general');
     let vendorGuideInput: { platform: string; content: string } | undefined;
+    let vendorSkillInput: { platform: string; skillName: string; content: string } | undefined;
     if (args.platform) {
-      const vendorGuideData = await client.getVendorGuide(args.platform);
-      if (vendorGuideData) {
-        vendorGuideInput = { platform: vendorGuideData.platform, content: vendorGuideData.content };
+      // Try vendor skill first (replaces vendor guide when present)
+      const vendorSkillData = await client.getVendorSkill(args.platform);
+      if (vendorSkillData) {
+        vendorSkillInput = {
+          platform: vendorSkillData.platform,
+          skillName: vendorSkillData.skillName,
+          content: vendorSkillData.content,
+        };
+      } else {
+        // Fall back to vendor deployment guide
+        const vendorGuideData = await client.getVendorGuide(args.platform);
+        if (vendorGuideData) {
+          vendorGuideInput = { platform: vendorGuideData.platform, content: vendorGuideData.content };
+        }
       }
     }
 
@@ -43,6 +55,7 @@ export async function handleDownloadBlueprint(
       businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
       generalGuide: generalGuideData?.content,
       vendorGuide: vendorGuideInput,
+      vendorSkill: vendorSkillInput,
     };
 
     const files = renderSkillDirectory(input);

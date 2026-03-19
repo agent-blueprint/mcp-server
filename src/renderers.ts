@@ -16,6 +16,7 @@ export interface SkillRenderInput {
   businessProfileData?: Record<string, unknown>;
   generalGuide?: string;
   vendorGuide?: { platform: string; content: string };
+  vendorSkill?: { platform: string; skillName: string; content: string };
 }
 
 // =============================================================================
@@ -138,7 +139,9 @@ function buildSkillFrontmatter(input: SkillRenderInput): string {
     `  pattern: "${pattern}"`,
     `  investment-tier: "${getInvestmentTier(input.blueprintData, input.businessCaseData)}"`,
   ];
-  if (input.vendorGuide) {
+  if (input.vendorSkill) {
+    lines.push(`  vendor-skill: "${input.vendorSkill.platform}"`);
+  } else if (input.vendorGuide) {
     lines.push(`  deployment-guide: "${input.vendorGuide.platform}"`);
   }
   lines.push('---');
@@ -188,7 +191,14 @@ function buildSkillBody(input: SkillRenderInput): string {
   lines.push(`- **Pattern:** ${pattern}`);
   lines.push(`- **Agents:** ${team.length}`, '');
 
-  if (input.vendorGuide) {
+  if (input.vendorSkill) {
+    const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
+    lines.push(
+      `> A ${platformLabel} expert skill has been installed at \`.claude/skills/${input.vendorSkill.skillName}/\`.`,
+      '> It will be auto-loaded for platform-specific tasks.',
+      '',
+    );
+  } else if (input.vendorGuide) {
     const guideFilename = `references/deployment-guide-${input.vendorGuide.platform}.md`;
     const platformLabel = input.vendorGuide.platform.charAt(0).toUpperCase() + input.vendorGuide.platform.slice(1);
     lines.push(
@@ -1517,8 +1527,15 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('4. **Step-by-step instructions** -- if none of the above are available, generate');
   lines.push('   detailed instructions the user can follow in the platform UI.');
   lines.push('');
-  lines.push('If `references/deployment-guide-*.md` files are present, read those for');
-  lines.push('platform-specific tooling, deployment sequence, and gotchas.');
+  if (input.vendorSkill) {
+    const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
+    lines.push(`A ${platformLabel} expert skill has been installed at \`.claude/skills/${input.vendorSkill.skillName}/\`.`);
+    lines.push('It will be auto-loaded for platform-specific tasks including tooling, deployment,');
+    lines.push('and debugging guidance.');
+  } else {
+    lines.push('If `references/deployment-guide-*.md` files are present, read those for');
+    lines.push('platform-specific tooling, deployment sequence, and gotchas.');
+  }
   lines.push('');
 
   // Step 3
@@ -1527,8 +1544,13 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('Check `references/implementation-roadmap.md` for Phase 1 scope.');
   lines.push('Build the lead agent first. Validate it works before expanding to the full team.');
   lines.push('');
-  lines.push('If a vendor deployment guide is included (`references/deployment-guide-*.md`),');
-  lines.push('follow its deployment sequence instead of the general pattern below.');
+  if (input.vendorSkill) {
+    lines.push(`The \`.claude/skills/${input.vendorSkill.skillName}/\` skill contains the deployment`);
+    lines.push('sequence and platform-specific patterns. Follow its guidance for implementation.');
+  } else {
+    lines.push('If a vendor deployment guide is included (`references/deployment-guide-*.md`),');
+    lines.push('follow its deployment sequence instead of the general pattern below.');
+  }
   lines.push('');
   lines.push('General pattern (fallback when no deployment guide is present):');
   lines.push('1. Create the data model (tables, fields, relationships) for the pilot scope');
@@ -1780,12 +1802,17 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
   // Getting Started guide
   files.set('GETTING-STARTED.md', buildGettingStarted(input));
 
-  // Deployment guides
+  // Deployment guides (vendor skill replaces vendor deployment guide when present)
   if (input.generalGuide) {
     files.set('references/deployment-guide-general.md', input.generalGuide);
   }
-  if (input.vendorGuide) {
+  if (input.vendorGuide && !input.vendorSkill) {
     files.set(`references/deployment-guide-${input.vendorGuide.platform}.md`, input.vendorGuide.content);
+  }
+
+  // Vendor expert skill
+  if (input.vendorSkill) {
+    files.set(`.claude/skills/${input.vendorSkill.skillName}/SKILL.md`, input.vendorSkill.content);
   }
 
   // Scripts
