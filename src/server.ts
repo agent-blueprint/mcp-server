@@ -16,6 +16,8 @@ import { handleGetUseCase } from './tools/get-use-case.js';
 import { handleListBlueprints } from './tools/list-blueprints.js';
 import { handleDownloadBlueprint } from './tools/download-blueprint.js';
 import { handleSyncImplementationState } from './tools/sync-implementation-state.js';
+import { handleReportMetric } from './tools/report-metric.js';
+import { handleGetProgress } from './tools/get-progress.js';
 
 export function createServer(config: Config): McpServer {
   const client = new AgentBlueprintClient(config);
@@ -128,6 +130,42 @@ export function createServer(config: Config): McpServer {
     async (args) => handleSyncImplementationState(client, {
       blueprintId: args.blueprintId,
       stateData: args.stateData as Record<string, unknown>,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'report_metric',
+    'Report actual performance metrics for a blueprint. The system auto-resolves predicted targets from the blueprint and returns deviation analysis. Supports multiple metrics in one call. Use this after implementing agents to track whether they hit their success criteria.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      metrics: z.array(z.object({
+        metricName: z.string().describe('Metric name as defined in the blueprint (e.g., "Incident Resolution Time", "ROI")'),
+        actualValue: z.string().describe('The measured actual value (e.g., "4.2 hours", "78%", "$150,000")'),
+        metricType: z.enum(['operational', 'financial']).optional().describe('Metric category. Auto-detected from blueprint if omitted.'),
+        metricUnit: z.string().optional().describe('Unit of measurement (e.g., "hours", "%", "USD/year")'),
+        baselineValue: z.string().optional().describe('Pre-agent baseline value, if this is the first measurement'),
+        notes: z.string().optional().describe('Context about how the measurement was taken'),
+        measuredAt: z.string().optional().describe('ISO 8601 timestamp of when measured. Defaults to now.'),
+      })).describe('One or more metrics to report'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleReportMetric(client, {
+      blueprintId: args.blueprintId,
+      metrics: args.metrics,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'get_progress',
+    'Get implementation progress and performance metrics for a blueprint. Returns predicted targets, latest actual measurements with deviation analysis, and implementation state (if synced via sync_implementation_state). Use this to check how an implementation is tracking against the plan.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleGetProgress(client, {
+      blueprintId: args.blueprintId,
       customerOrgId: args.customerOrgId,
     })
   );

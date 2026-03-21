@@ -8,6 +8,8 @@ import { handleGetImplementationPlan } from '../tools/get-implementation-plan.js
 import { handleGetBusinessProfile } from '../tools/get-business-profile.js';
 import { handleDownloadBlueprint } from '../tools/download-blueprint.js';
 import { handleSyncImplementationState } from '../tools/sync-implementation-state.js';
+import { handleReportMetric } from '../tools/report-metric.js';
+import { handleGetProgress } from '../tools/get-progress.js';
 
 const mockConfig = {
   apiKey: 'ab_live_test',
@@ -576,5 +578,227 @@ describe('handleSyncImplementationState', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Invalid enum value');
+  });
+});
+
+describe('handleReportMetric', () => {
+  let client: AgentBlueprintClient;
+
+  beforeEach(() => {
+    client = new AgentBlueprintClient(mockConfig);
+    vi.restoreAllMocks();
+  });
+
+  it('returns formatted summary with deviation analysis', async () => {
+    const reportResponse = {
+      results: [
+        {
+          metricName: 'Incident Resolution Time',
+          metricId: 'metric-1',
+          predictedValue: '≤5 hours',
+          actualValue: '4.2 hours',
+          deviationPercent: -16,
+          status: 'on_track',
+          warnings: [],
+        },
+        {
+          metricName: 'First Contact Resolution',
+          metricId: 'metric-2',
+          predictedValue: '≥80%',
+          actualValue: '78%',
+          deviationPercent: -2.5,
+          status: 'on_track',
+          warnings: [],
+        },
+      ],
+      summary: { total: 2, succeeded: 2, failed: 0, warnings: 0 },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: reportResponse, timestamp: '' }),
+    }));
+
+    const result = await handleReportMetric(client, {
+      blueprintId: 'bp-1',
+      metrics: [
+        { metricName: 'Incident Resolution Time', actualValue: '4.2 hours' },
+        { metricName: 'First Contact Resolution', actualValue: '78%' },
+      ],
+    });
+
+    expect(result.isError).toBeUndefined();
+    const text = result.content[0].text;
+    expect(text).toContain('2/2 metrics');
+    expect(text).toContain('[OK] Incident Resolution Time');
+    expect(text).toContain('target: ≤5 hours');
+    expect(text).toContain('4.2 hours');
+  });
+
+  it('shows warnings for unmatched metrics', async () => {
+    const reportResponse = {
+      results: [
+        {
+          metricName: 'Custom Metric',
+          metricId: 'metric-3',
+          predictedValue: 'N/A',
+          actualValue: '42',
+          deviationPercent: 0,
+          status: 'on_track',
+          warnings: ['Metric "Custom Metric" not found in blueprint targets.'],
+        },
+      ],
+      summary: { total: 1, succeeded: 1, failed: 0, warnings: 1 },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: reportResponse, timestamp: '' }),
+    }));
+
+    const result = await handleReportMetric(client, {
+      blueprintId: 'bp-1',
+      metrics: [{ metricName: 'Custom Metric', actualValue: '42' }],
+    });
+
+    expect(result.isError).toBeUndefined();
+    const text = result.content[0].text;
+    expect(text).toContain('Custom Metric');
+    expect(text).toContain('not found in blueprint targets');
+  });
+
+  it('returns error on API failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      json: () => Promise.resolve({ error: 'Blueprint not found' }),
+    }));
+
+    const result = await handleReportMetric(client, {
+      blueprintId: 'nonexistent',
+      metrics: [{ metricName: 'Test', actualValue: '100' }],
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Blueprint not found');
+  });
+});
+
+describe('handleGetProgress', () => {
+  let client: AgentBlueprintClient;
+
+  beforeEach(() => {
+    client = new AgentBlueprintClient(mockConfig);
+    vi.restoreAllMocks();
+  });
+
+  it('returns formatted progress with metrics and implementation state', async () => {
+    const progressResponse = {
+      blueprintId: 'bp-1',
+      blueprintTitle: 'Enterprise Onboarding Automation',
+      targets: {
+        operational: [
+          { name: 'Onboarding Cycle Time', target: '≤5 days', unit: 'days', direction: 'lower_is_better' },
+          { name: 'Error Rate', target: '≤2%', unit: '%', direction: 'lower_is_better' },
+        ],
+        financial: [
+          { name: 'ROI', value: '285%', unit: '%', direction: 'higher_is_better' },
+        ],
+      },
+      actuals: [
+        {
+          id: 'metric-1',
+          metricName: 'Onboarding Cycle Time',
+          metricType: 'operational',
+          predictedValue: '≤5 days',
+          actualValue: '6.2 days',
+          deviationPercent: 24,
+          status: 'major_deviation',
+          recordedAt: '2026-03-20T10:00:00Z',
+          dataSource: 'api',
+          recordingCount: 3,
+        },
+      ],
+      summary: {
+        totalTargets: 3,
+        metricsRecorded: 1,
+        onTrack: 0,
+        minorDeviation: 0,
+        majorDeviation: 1,
+      },
+      implementationState: {
+        overallStatus: 'in_progress',
+        agentCount: 5,
+        implementedCount: 3,
+        lastSyncedAt: '2026-03-19T15:00:00Z',
+      },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: progressResponse, timestamp: '' }),
+    }));
+
+    const result = await handleGetProgress(client, { blueprintId: 'bp-1' });
+
+    expect(result.isError).toBeUndefined();
+    const text = result.content[0].text;
+    expect(text).toContain('Enterprise Onboarding Automation');
+    expect(text).toContain('3/5 agents');
+    expect(text).toContain('1/3 targets measured');
+    expect(text).toContain('[MAJOR] Onboarding Cycle Time');
+    expect(text).toContain('6.2 days');
+    expect(text).toContain('3 recordings');
+    expect(text).toContain('Error Rate');
+    expect(text).toContain('ROI');
+    expect(text).toContain('Not yet measured');
+  });
+
+  it('shows all targets as unmeasured when no actuals exist', async () => {
+    const progressResponse = {
+      blueprintId: 'bp-2',
+      blueprintTitle: 'New Blueprint',
+      targets: {
+        operational: [{ name: 'Metric A', target: '100', direction: 'higher_is_better' }],
+        financial: [],
+      },
+      actuals: [],
+      summary: {
+        totalTargets: 1,
+        metricsRecorded: 0,
+        onTrack: 0,
+        minorDeviation: 0,
+        majorDeviation: 0,
+      },
+      implementationState: null,
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: progressResponse, timestamp: '' }),
+    }));
+
+    const result = await handleGetProgress(client, { blueprintId: 'bp-2' });
+
+    expect(result.isError).toBeUndefined();
+    const text = result.content[0].text;
+    expect(text).toContain('0/1 targets measured');
+    expect(text).toContain('Not yet measured');
+    expect(text).toContain('Metric A');
+  });
+
+  it('returns error on API failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      json: () => Promise.resolve({ error: 'Blueprint not found' }),
+    }));
+
+    const result = await handleGetProgress(client, { blueprintId: 'nonexistent' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Blueprint not found');
   });
 });

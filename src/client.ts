@@ -141,6 +141,29 @@ export class AgentBlueprintClient {
     );
   }
 
+  async reportMetrics(
+    blueprintId: string,
+    metrics: ReportMetricInput[],
+    reportedBy: string,
+    customerOrgId?: string,
+  ): Promise<ReportMetricsResponse> {
+    return this.postRequest<ReportMetricsResponse>(
+      `/blueprints/${encodeURIComponent(blueprintId)}/metrics`,
+      { metrics, reportedBy },
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async getProgress(
+    blueprintId: string,
+    customerOrgId?: string,
+  ): Promise<ProgressResponse> {
+    return this.request<ProgressResponse>(
+      `/blueprints/${encodeURIComponent(blueprintId)}/progress`,
+      this.orgQuery(customerOrgId),
+    );
+  }
+
   async getVendorGuide(platform: string): Promise<VendorGuideResponse | null> {
     try {
       const url = new URL(`${this.config.apiUrl}/api/vendor-guide/${encodeURIComponent(platform)}`);
@@ -292,4 +315,73 @@ export interface BusinessProfile {
   aiReadinessScore: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// ─── Performance metrics types ────────────────────────────────────
+
+export interface ReportMetricInput {
+  metricName: string;
+  actualValue: string;
+  metricType?: 'operational' | 'financial';
+  metricUnit?: string;
+  baselineValue?: string;
+  notes?: string;
+  measuredAt?: string;
+}
+
+export interface MetricResult {
+  metricName: string;
+  metricId?: string;
+  predictedValue?: string;
+  actualValue: string;
+  deviationPercent?: number;
+  status?: string;
+  warnings: string[];
+  error?: string;
+}
+
+export interface ReportMetricsResponse {
+  results: MetricResult[];
+  summary: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    warnings: number;
+  };
+}
+
+export interface ProgressResponse {
+  blueprintId: string;
+  blueprintTitle: string;
+  targets: {
+    operational: Array<{ name: string; target: string; unit?: string; direction?: string }>;
+    financial: Array<{ name: string; value: string; unit?: string; direction?: string }>;
+  };
+  actuals: Array<{
+    id: string;
+    metricName: string;
+    metricType: string;
+    predictedValue: string;
+    actualValue: string;
+    baselineValue?: string;
+    deviationPercent?: number;
+    status: string;
+    recordedAt: string;
+    dataSource: string;
+    notes?: string;
+    recordingCount: number;
+  }>;
+  summary: {
+    totalTargets: number;
+    metricsRecorded: number;
+    onTrack: number;
+    minorDeviation: number;
+    majorDeviation: number;
+  };
+  implementationState?: {
+    overallStatus: string;
+    agentCount: number;
+    implementedCount: number;
+    lastSyncedAt: string;
+  } | null;
 }
