@@ -193,7 +193,8 @@ describe('renderSkillDirectory', () => {
     expect(paths).toContain('references/platform-connectivity.md');
     expect(paths).toContain('GETTING-STARTED.md');
     expect(paths).toContain('scripts/validate-spec.sh');
-    expect(files.size).toBe(12);
+    expect(paths).toContain('implementation-state.yaml');
+    expect(files.size).toBe(13);
   });
 
   it('SKILL.md starts with YAML frontmatter', () => {
@@ -429,7 +430,7 @@ describe('renderSkillDirectory with missing data', () => {
     };
     // Should not throw
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(12);
+    expect(files.size).toBe(13);
   });
 
   it('SKILL.md renders phases from implementation plan epics', () => {
@@ -609,5 +610,160 @@ describe('evaluation criteria deduplication', () => {
     const evalCriteria = files.get('references/evaluation-criteria.md')!;
     expect(evalCriteria).toContain('Approval Rate');
     expect(evalCriteria).toContain('Rejection Rate');
+  });
+});
+
+describe('implementation-state.yaml', () => {
+  it('contains schema_version and blueprint_id', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('schema_version: "1.0"');
+    expect(state).toContain('blueprint_id: "bp-123"');
+  });
+
+  it('pre-populates agent names from blueprint', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('name: "Test Agent"');
+    expect(state).toContain('status: not_started');
+  });
+
+  it('includes agent role and tools as comments', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('# role: Worker | tools: TestRunner');
+  });
+
+  it('includes success metrics as commented-out templates', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('# - metric: "Test Pass Rate"');
+    expect(state).toContain('#   target: "99%"');
+  });
+
+  it('renders overall_status as not_started', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('overall_status: not_started');
+  });
+
+  it('includes architecture pattern hint from blueprint', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('# actual pattern used (spec recommends: Supervisor)');
+  });
+
+  it('handles empty team gracefully', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: { ...minimalInput.blueprintData, enhancedDigitalTeam: [] },
+    };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('agents: []');
+    expect(state).toContain('schema_version: "1.0"');
+    expect(state).toContain('metrics_observed: []');
+  });
+
+  it('handles agent with no success metrics', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        enhancedDigitalTeam: [
+          { name: 'Plain Agent', agentRole: 'Worker' },
+        ],
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('name: "Plain Agent"');
+    expect(state).toContain('metrics_observed: []');
+    expect(state).not.toContain('# - metric:');
+  });
+
+  it('handles multiple agents', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        enhancedDigitalTeam: [
+          {
+            name: 'Manager Agent',
+            agentRole: 'Manager',
+            enhancedTools: [{ name: 'TaskRouter', description: 'Routes tasks' }],
+            successMetrics: [{ metric: 'Task Completion', target: '95%' }],
+          },
+          {
+            name: 'Worker Agent',
+            agentRole: 'Worker',
+            enhancedTools: [{ name: 'DataParser', description: 'Parses data' }],
+            successMetrics: [{ metric: 'Accuracy', target: '99%' }],
+          },
+        ],
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('name: "Manager Agent"');
+    expect(state).toContain('name: "Worker Agent"');
+    expect(state).toContain('# - metric: "Task Completion"');
+    expect(state).toContain('# - metric: "Accuracy"');
+  });
+
+  it('deduplicates success metrics across agents', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        enhancedDigitalTeam: [
+          { name: 'Agent A', agentRole: 'Worker', successMetrics: [{ metric: 'Accuracy', target: '95%' }] },
+          { name: 'Agent B', agentRole: 'Worker', successMetrics: [{ metric: 'Accuracy', target: '95%' }] },
+        ],
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    const metricLines = state.split('\n').filter(l => l.includes('# - metric: "Accuracy"'));
+    expect(metricLines.length).toBe(1);
+  });
+
+  it('status enum comment only on first agent', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        enhancedDigitalTeam: [
+          { name: 'Agent A', agentRole: 'Worker' },
+          { name: 'Agent B', agentRole: 'Worker' },
+        ],
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    const enumComments = state.split('\n').filter(l => l.includes('# not_started | in_progress | implemented'));
+    expect(enumComments.length).toBe(1);
+  });
+});
+
+describe('GETTING-STARTED.md implementation state reference', () => {
+  it('mentions implementation-state.yaml', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('implementation-state.yaml');
+  });
+
+  it('references agentblueprint sync', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('agentblueprint sync');
+  });
+});
+
+describe('validate-spec.sh implementation state check', () => {
+  it('checks for implementation-state.yaml', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const script = files.get('scripts/validate-spec.sh')!;
+    expect(script).toContain('check_optional "implementation-state.yaml"');
   });
 });

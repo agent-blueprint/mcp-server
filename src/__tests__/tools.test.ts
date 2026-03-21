@@ -345,13 +345,14 @@ describe('handleDownloadBlueprint', () => {
 
     expect(manifest.directory).toBe('my-test-blueprint');
     expect(manifest.installHint).toContain('.agent-blueprint/');
-    expect(manifest.files).toHaveLength(12);
+    expect(manifest.files).toHaveLength(13);
 
     const filePaths = manifest.files.map((f: { path: string }) => f.path);
     expect(filePaths).toContain('SKILL.md');
     expect(filePaths).toContain('references/agent-specifications.md');
     expect(filePaths).toContain('references/financial-case.md');
     expect(filePaths).toContain('scripts/validate-spec.sh');
+    expect(filePaths).toContain('implementation-state.yaml');
 
     // SKILL.md should have frontmatter
     const skillFile = manifest.files.find((f: { path: string }) => f.path === 'SKILL.md');
@@ -409,7 +410,7 @@ describe('handleDownloadBlueprint', () => {
 
     expect(result.isError).toBeUndefined();
     const manifest = JSON.parse(result.content[0].text);
-    expect(manifest.files).toHaveLength(12);
+    expect(manifest.files).toHaveLength(13);
   });
 
   it('returns error when blueprint fetch fails', async () => {

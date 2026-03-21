@@ -1585,13 +1585,26 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('');
 
   // Step 5
-  lines.push('## Step 5: Close the loop');
+  lines.push('## Step 5: Track progress and close the loop');
   lines.push('');
-  lines.push('After deployment, track actual performance against the targets in');
-  lines.push('`references/evaluation-criteria.md`. Record results in Agent Blueprint\'s');
-  lines.push('Performance tab to track ROI and inform future blueprint iterations.');
+  lines.push('As you implement each agent, update `implementation-state.yaml`:');
   lines.push('');
-  lines.push('The cycle is: blueprint, implement, measure, re-generate with real data.');
+  lines.push('1. Set the agent\'s `status` to `in_progress` when you start, `implemented` when done.');
+  lines.push('2. Record the `platform_artifact` (sys_id, function name, service URL, etc.).');
+  lines.push('3. Note any `deviations` from the spec and why you made them.');
+  lines.push('4. List `integrations_connected` for each agent.');
+  lines.push('5. Update `overall_status` as you progress.');
+  lines.push('6. Fill in the `platform` section with the actual platform, version, and environment.');
+  lines.push('');
+  lines.push('When the full team is deployed:');
+  lines.push('');
+  lines.push('- Review `metrics_observed` and fill in actual values from the running system.');
+  lines.push('- Sync your state back to Agent Blueprint:');
+  lines.push('');
+  lines.push('  agentblueprint sync <blueprint-id>');
+  lines.push('');
+  lines.push('This closes the loop: Agent Blueprint tracks what was actually built, measures');
+  lines.push('outcomes against predictions, and generates better recommendations next time.');
   lines.push('');
 
   // Platform patterns
@@ -1693,6 +1706,10 @@ check_optional "references/evaluation-criteria.md"
 check_optional "references/platform-connectivity.md"
 
 echo ""
+echo "--- Implementation Tracking ---"
+check_optional "implementation-state.yaml"
+
+echo ""
 echo "--- Deployment Guides ---"
 GUIDE_COUNT=0
 for guide in references/deployment-guide-*.md; do
@@ -1788,6 +1805,108 @@ function buildPlatformConnectivity(): string {
 }
 
 // =============================================================================
+// IMPLEMENTATION STATE TEMPLATE
+// =============================================================================
+
+function buildImplementationState(input: SkillRenderInput): string {
+  const bp = input.blueprintData as Record<string, unknown>;
+  const team = getTeam(bp);
+  const pattern = getAgenticPattern(bp);
+
+  const lines: string[] = [];
+
+  // Header
+  lines.push('# implementation-state.yaml');
+  lines.push('# Updated by the coding agent as implementation progresses.');
+  lines.push('# Sync back to Agent Blueprint: agentblueprint sync <blueprint-id>');
+  lines.push('');
+  lines.push('schema_version: "1.0"');
+  lines.push(`blueprint_id: "${input.blueprintId}"`);
+  lines.push('last_updated: ""');
+  lines.push('');
+  lines.push('overall_status: not_started  # not_started | in_progress | partial | complete');
+  lines.push('');
+
+  // Platform
+  lines.push('platform:');
+  lines.push('  name: ""           # e.g., "ServiceNow", "Salesforce", "Custom Node.js"');
+  lines.push('  version: ""        # e.g., "Australia", "Spring \'26"');
+  lines.push('  environment: ""    # e.g., "dev", "staging", "production"');
+  lines.push('');
+
+  // Agents
+  if (team.length === 0) {
+    lines.push('agents: []  # No agents defined in blueprint');
+  } else {
+    lines.push('agents:');
+    for (let i = 0; i < team.length; i++) {
+      const agent = team[i] as Record<string, unknown>;
+      const name = str(agent.name);
+      const escapedName = name.replace(/"/g, '\\"');
+      const type = str(agent.agentRole) || str(agent.orchestrationRole) || str(agent.type) || 'Worker';
+      const tools = arr(agent.enhancedTools).map((t: Record<string, unknown>) => str(t.name)).filter(Boolean);
+      const toolHint = tools.length > 0 ? ` | tools: ${tools.join(', ')}` : '';
+
+      lines.push(`  - name: "${escapedName}"`);
+      lines.push(`    # role: ${type}${toolHint}`);
+      if (i === 0) {
+        lines.push('    status: not_started  # not_started | in_progress | implemented | modified | skipped');
+        lines.push('    platform_artifact: ""  # sys_id, function name, service URL, etc.');
+      } else {
+        lines.push('    status: not_started');
+        lines.push('    platform_artifact: ""');
+      }
+      lines.push('    deviations: []');
+      lines.push('    integrations_connected: []');
+      lines.push('    notes: ""');
+      if (i < team.length - 1) lines.push('');
+    }
+  }
+  lines.push('');
+
+  // Architecture
+  lines.push('architecture:');
+  lines.push(`  pattern: ""        # actual pattern used (spec recommends: ${pattern})`);
+  lines.push('  deviations: []');
+  lines.push('  additional_components: []');
+  lines.push('');
+
+  // Metrics -- collect and deduplicate from all agents
+  const seenMetrics = new Set<string>();
+  const metricEntries: { metric: string; target: string }[] = [];
+  for (const agent of team) {
+    const a = agent as Record<string, unknown>;
+    const metrics = arr(a.successMetrics);
+    for (const m of metrics) {
+      const mr = rec(m);
+      const metric = str(mr.metric);
+      const target = str(mr.target);
+      if (metric && !seenMetrics.has(metric)) {
+        seenMetrics.add(metric);
+        metricEntries.push({ metric, target });
+      }
+    }
+  }
+
+  if (metricEntries.length > 0) {
+    lines.push('# To track metrics, replace [] with entries:');
+    lines.push('metrics_observed: []');
+    lines.push('  # Blueprint-defined success metrics:');
+    for (const entry of metricEntries) {
+      lines.push(`  # - metric: "${entry.metric}"`);
+      lines.push(`  #   target: "${entry.target}"`);
+      lines.push('  #   actual: ""');
+      lines.push('  #   measured_at: ""');
+      lines.push('  #   source: ""');
+    }
+  } else {
+    lines.push('metrics_observed: []');
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+// =============================================================================
 // MAIN RENDER FUNCTION
 // =============================================================================
 
@@ -1832,6 +1951,9 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
 
   // Scripts
   files.set('scripts/validate-spec.sh', buildValidateScript());
+
+  // Implementation state template
+  files.set('implementation-state.yaml', buildImplementationState(input));
 
   return files;
 }
