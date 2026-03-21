@@ -15,6 +15,7 @@ import { handleGetImplementationSpec } from './tools/get-implementation-spec.js'
 import { handleGetUseCase } from './tools/get-use-case.js';
 import { handleListBlueprints } from './tools/list-blueprints.js';
 import { handleDownloadBlueprint } from './tools/download-blueprint.js';
+import { handleSyncImplementationState } from './tools/sync-implementation-state.js';
 
 export function createServer(config: Config): McpServer {
   const client = new AgentBlueprintClient(config);
@@ -86,6 +87,49 @@ export function createServer(config: Config): McpServer {
       platform: z.string().optional().describe("Target deployment platform (e.g., 'servicenow', 'openclaw'). Includes a platform-specific deployment guide."),
     },
     async (args) => handleDownloadBlueprint(client, args)
+  );
+
+  server.tool(
+    'sync_implementation_state',
+    'Sync implementation state back to Agent Blueprint. Reports which agents have been implemented, their status, platform artifacts, and any deviations from the spec. Each sync creates a versioned snapshot enabling progress tracking over time.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      stateData: z.object({
+        schema_version: z.string().describe('Schema version, e.g. "1.0"'),
+        overall_status: z.enum(['not_started', 'in_progress', 'partial', 'complete']).describe('Overall implementation status'),
+        platform: z.object({
+          name: z.string(),
+          version: z.string(),
+          environment: z.string(),
+        }).describe('Target platform details'),
+        agents: z.array(z.object({
+          name: z.string(),
+          status: z.enum(['not_started', 'in_progress', 'implemented', 'modified', 'skipped']),
+          platform_artifact: z.string().optional().default(''),
+          deviations: z.array(z.string()).optional().default([]),
+          integrations_connected: z.array(z.string()).optional().default([]),
+          notes: z.string().optional().default(''),
+        })).describe('Per-agent implementation status'),
+        architecture: z.object({
+          pattern: z.string(),
+          deviations: z.array(z.string()).optional().default([]),
+          additional_components: z.array(z.string()).optional().default([]),
+        }).optional(),
+        metrics_observed: z.array(z.object({
+          metric: z.string(),
+          target: z.string().optional().default(''),
+          actual: z.string().optional().default(''),
+          measured_at: z.string().optional().default(''),
+          source: z.string().optional(),
+        })).optional(),
+      }).describe('Implementation state data (structured JSON matching implementation-state.yaml schema)'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleSyncImplementationState(client, {
+      blueprintId: args.blueprintId,
+      stateData: args.stateData as Record<string, unknown>,
+      customerOrgId: args.customerOrgId,
+    })
   );
 
   // ─── Resources ──────────────────────────────────────────────────────

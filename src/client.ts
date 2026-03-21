@@ -45,6 +45,39 @@ export class AgentBlueprintClient {
     return json.data;
   }
 
+  private async postRequest<T>(path: string, body: unknown, query?: Record<string, string>): Promise<T> {
+    const url = new URL(`${this.config.apiUrl}/api/v1${path}`);
+    if (query) {
+      for (const [k, v] of Object.entries(query)) {
+        url.searchParams.set(k, v);
+      }
+    }
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.config.apiKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const respBody = await response.json().catch(() => ({ error: response.statusText }));
+      throw new ApiError(
+        response.status,
+        (respBody as Record<string, string>).error || `Request failed: ${response.status}`
+      );
+    }
+
+    const json = (await response.json()) as ApiResponse<T>;
+    if (!json.success) {
+      throw new ApiError(400, 'API returned unsuccessful response');
+    }
+
+    return json.data;
+  }
+
   private orgQuery(customerOrgId?: string): Record<string, string> | undefined {
     return customerOrgId ? { customerOrgId } : undefined;
   }
@@ -82,6 +115,29 @@ export class AgentBlueprintClient {
   async getImplementationSpec(blueprintId: string, customerOrgId?: string): Promise<ImplementationSpecResponse> {
     return this.request<ImplementationSpecResponse>(
       `/blueprints/${encodeURIComponent(blueprintId)}/implementation-spec`, this.orgQuery(customerOrgId)
+    );
+  }
+
+  async syncImplementationState(
+    blueprintId: string,
+    stateData: Record<string, unknown>,
+    syncedBy: string,
+    customerOrgId?: string,
+  ): Promise<ImplementationStateSyncResponse> {
+    return this.postRequest<ImplementationStateSyncResponse>(
+      `/blueprints/${encodeURIComponent(blueprintId)}/implementation-state`,
+      { stateData, syncedBy },
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async getImplementationState(
+    blueprintId: string,
+    customerOrgId?: string,
+  ): Promise<ImplementationStateResponse | null> {
+    return this.request<ImplementationStateResponse | null>(
+      `/blueprints/${encodeURIComponent(blueprintId)}/implementation-state`,
+      this.orgQuery(customerOrgId),
     );
   }
 
@@ -178,6 +234,44 @@ export interface VendorSkillResponse {
   skillName: string;
   content: string;
   lastVerified: string;
+}
+
+export interface ImplementationStateSyncResponse {
+  state: {
+    id: string;
+    blueprintId: string;
+    organizationId: string;
+    stateData: Record<string, unknown>;
+    schemaVersion: string;
+    syncedAt: string;
+    syncedBy: string | null;
+    previousStateId: string | null;
+  };
+  diff: {
+    isFirstSync: boolean;
+    overallStatusChange: {
+      from: string | null;
+      to: string;
+    } | null;
+    agentChanges: Array<{
+      name: string;
+      statusChange: { from: string | null; to: string } | null;
+      isNew: boolean;
+      isRemoved: boolean;
+    }>;
+  };
+  warnings: string[];
+}
+
+export interface ImplementationStateResponse {
+  id: string;
+  blueprintId: string;
+  organizationId: string;
+  stateData: Record<string, unknown>;
+  schemaVersion: string;
+  syncedAt: string;
+  syncedBy: string | null;
+  previousStateId: string | null;
 }
 
 export interface BusinessProfile {

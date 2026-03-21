@@ -14,6 +14,7 @@ import { handleGetBusinessProfile } from './tools/get-business-profile.js';
 import { handleGetImplementationPlan } from './tools/get-implementation-plan.js';
 import { handleGetImplementationSpec } from './tools/get-implementation-spec.js';
 import { handleGetUseCase } from './tools/get-use-case.js';
+import { handleSyncImplementationState } from './tools/sync-implementation-state.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version: string };
@@ -45,6 +46,7 @@ Usage:
   agentblueprint get implementation-spec <id> [--org <id>]  Implementation spec metadata
   agentblueprint get business-profile [--org <id>]      Business profile
   agentblueprint download <id> [--org <id>] [--dir <path>]  Download as Agent Skills
+  agentblueprint sync [<file>] [--blueprint <id>] [--org <id>]  Sync implementation state
   agentblueprint --help                                 Show this help
   agentblueprint --version                              Show version
 
@@ -199,6 +201,66 @@ async function cmdDownload(args: string[]): Promise<void> {
   await runDownload(config, downloadArgs);
 }
 
+async function cmdSync(args: string[]): Promise<void> {
+  const token = findFlag(args, '--token');
+  const customerOrgId = findFlag(args, '--org');
+  const blueprintFlag = findFlag(args, '--blueprint');
+
+  // Find positional file path: first arg not starting with -- and not a value of a flag
+  const flagValues = new Set<number>();
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--token' || args[i] === '--org' || args[i] === '--blueprint') {
+      flagValues.add(i + 1);
+    }
+  }
+  const filePath = args.find((a, i) => !a.startsWith('--') && !flagValues.has(i))
+    || './implementation-state.yaml';
+
+  // Read and parse the file
+  const fs = await import('node:fs');
+  if (!fs.existsSync(filePath)) {
+    console.error(`Error: File not found: ${filePath}`);
+    process.exit(1);
+  }
+
+  const content = fs.readFileSync(filePath, 'utf-8');
+  let stateData: Record<string, unknown>;
+
+  if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
+    const yaml = await import('js-yaml');
+    stateData = yaml.load(content) as Record<string, unknown>;
+  } else {
+    stateData = JSON.parse(content);
+  }
+
+  // Extract blueprint_id from file if not provided via flag
+  const blueprintId = blueprintFlag
+    || (stateData.blueprint_id as string)
+    || undefined;
+
+  if (!blueprintId) {
+    console.error('Error: No blueprint ID. Provide via --blueprint flag or blueprint_id field in the file.');
+    process.exit(1);
+  }
+
+  console.error(`Syncing implementation state for blueprint ${blueprintId}...`);
+
+  const config = loadConfig(token);
+  const client = new AgentBlueprintClient(config);
+  const result = await handleSyncImplementationState(client, {
+    blueprintId,
+    stateData,
+    customerOrgId,
+  });
+
+  if (result.isError) {
+    console.error(result.content[0].text);
+    process.exit(1);
+  }
+
+  process.stdout.write(result.content[0].text + '\n');
+}
+
 async function startMcpServer(args: string[]): Promise<void> {
   // Dynamic import so the MCP SDK is only loaded when actually serving
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
@@ -253,6 +315,9 @@ async function main() {
         break;
       case 'download':
         await cmdDownload(rest);
+        break;
+      case 'sync':
+        await cmdSync(rest);
         break;
       case 'serve':
         await startMcpServer(rest);

@@ -127,6 +127,55 @@ describe('AgentBlueprintClient', () => {
     );
   });
 
+  it('syncImplementationState sends POST to correct endpoint', async () => {
+    const syncData = {
+      state: { id: 'state-1', blueprintId: 'bp-1' },
+      diff: { isFirstSync: true, overallStatusChange: null, agentChanges: [] },
+      warnings: [],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: syncData, timestamp: '' }),
+    }));
+
+    const stateData = { schema_version: '1.0', overall_status: 'not_started', platform: { name: '', version: '', environment: '' }, agents: [] };
+    await client.syncImplementationState('bp-1', stateData, 'mcp');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://test.agentblueprint.ai/api/v1/blueprints/bp-1/implementation-state',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ab_live_test1234567890',
+        }),
+        body: expect.any(String),
+      })
+    );
+
+    // Verify body contains stateData and syncedBy
+    const callArgs = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(callArgs[1].body);
+    expect(body.stateData).toEqual(stateData);
+    expect(body.syncedBy).toBe('mcp');
+  });
+
+  it('getImplementationState calls correct endpoint', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: null, timestamp: '' }),
+    }));
+
+    await client.getImplementationState('bp-1');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://test.agentblueprint.ai/api/v1/blueprints/bp-1/implementation-state',
+      expect.objectContaining({
+        method: 'GET',
+      })
+    );
+  });
+
   it('getImplementationSpec calls correct endpoint', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,

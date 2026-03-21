@@ -7,6 +7,7 @@ import { handleGetBusinessCase } from '../tools/get-business-case.js';
 import { handleGetImplementationPlan } from '../tools/get-implementation-plan.js';
 import { handleGetBusinessProfile } from '../tools/get-business-profile.js';
 import { handleDownloadBlueprint } from '../tools/download-blueprint.js';
+import { handleSyncImplementationState } from '../tools/sync-implementation-state.js';
 
 const mockConfig = {
   apiKey: 'ab_live_test',
@@ -425,5 +426,155 @@ describe('handleDownloadBlueprint', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Blueprint not found');
+  });
+});
+
+describe('handleSyncImplementationState', () => {
+  let client: AgentBlueprintClient;
+
+  beforeEach(() => {
+    client = new AgentBlueprintClient(mockConfig);
+    vi.restoreAllMocks();
+  });
+
+  const sampleStateData = {
+    schema_version: '1.0',
+    overall_status: 'in_progress',
+    platform: { name: 'ServiceNow', version: 'Australia', environment: 'dev' },
+    agents: [
+      { name: 'Intake Classifier', status: 'implemented' },
+      { name: 'Resolution Agent', status: 'in_progress' },
+    ],
+  };
+
+  it('returns formatted summary on first sync', async () => {
+    const syncResponse = {
+      state: {
+        id: 'state-1',
+        blueprintId: 'bp-1',
+        organizationId: 'org-1',
+        stateData: sampleStateData,
+        schemaVersion: '1.0',
+        syncedAt: '2026-03-22T10:00:00Z',
+        syncedBy: 'mcp',
+        previousStateId: null,
+      },
+      diff: {
+        isFirstSync: true,
+        overallStatusChange: { from: null, to: 'in_progress' },
+        agentChanges: [
+          { name: 'Intake Classifier', statusChange: { from: null, to: 'implemented' }, isNew: true, isRemoved: false },
+          { name: 'Resolution Agent', statusChange: { from: null, to: 'in_progress' }, isNew: true, isRemoved: false },
+        ],
+      },
+      warnings: [],
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: syncResponse, timestamp: '' }),
+    }));
+
+    const result = await handleSyncImplementationState(client, {
+      blueprintId: 'bp-1',
+      stateData: sampleStateData,
+    });
+
+    expect(result.isError).toBeUndefined();
+    const text = result.content[0].text;
+    expect(text).toContain('first sync');
+    expect(text).toContain('state-1');
+    expect(text).toContain('Intake Classifier');
+    expect(text).toContain('1/2 agents implemented');
+  });
+
+  it('returns formatted summary on subsequent sync with changes', async () => {
+    const syncResponse = {
+      state: {
+        id: 'state-2',
+        blueprintId: 'bp-1',
+        organizationId: 'org-1',
+        stateData: { ...sampleStateData, overall_status: 'complete', agents: [
+          { name: 'Intake Classifier', status: 'implemented' },
+          { name: 'Resolution Agent', status: 'implemented' },
+        ]},
+        schemaVersion: '1.0',
+        syncedAt: '2026-03-22T12:00:00Z',
+        syncedBy: 'mcp',
+        previousStateId: 'state-1',
+      },
+      diff: {
+        isFirstSync: false,
+        overallStatusChange: { from: 'in_progress', to: 'complete' },
+        agentChanges: [
+          { name: 'Resolution Agent', statusChange: { from: 'in_progress', to: 'implemented' }, isNew: false, isRemoved: false },
+        ],
+      },
+      warnings: [],
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: syncResponse, timestamp: '' }),
+    }));
+
+    const result = await handleSyncImplementationState(client, {
+      blueprintId: 'bp-1',
+      stateData: sampleStateData,
+    });
+
+    expect(result.isError).toBeUndefined();
+    const text = result.content[0].text;
+    expect(text).toContain('updated');
+    expect(text).toContain('in_progress -> complete');
+    expect(text).toContain('Resolution Agent: in_progress -> implemented');
+    expect(text).toContain('2/2 agents implemented');
+  });
+
+  it('shows warnings from agent name mismatch', async () => {
+    const syncResponse = {
+      state: {
+        id: 'state-3',
+        blueprintId: 'bp-1',
+        organizationId: 'org-1',
+        stateData: sampleStateData,
+        schemaVersion: '1.0',
+        syncedAt: '2026-03-22T10:00:00Z',
+        syncedBy: 'mcp',
+        previousStateId: null,
+      },
+      diff: { isFirstSync: true, overallStatusChange: null, agentChanges: [] },
+      warnings: ['Agent "Unknown Agent" not found in blueprint'],
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: syncResponse, timestamp: '' }),
+    }));
+
+    const result = await handleSyncImplementationState(client, {
+      blueprintId: 'bp-1',
+      stateData: sampleStateData,
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain('Unknown Agent');
+  });
+
+  it('returns error on validation failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+      json: () => Promise.resolve({ error: 'overall_status: Invalid enum value' }),
+    }));
+
+    const result = await handleSyncImplementationState(client, {
+      blueprintId: 'bp-1',
+      stateData: { schema_version: '1.0', overall_status: 'invalid' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Invalid enum value');
   });
 });
