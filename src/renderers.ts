@@ -1986,9 +1986,13 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push('## Step 4: Validate and measure');
   lines.push('');
   lines.push('Use `references/evaluation-criteria.md` to verify success metrics.');
-  lines.push('Report actuals:');
+  lines.push('Report actuals via MCP tool:');
   lines.push('');
-  lines.push('  agentblueprint report-metric <blueprint-id> --metric "Metric Name" --value "actual"');
+  lines.push('    Use the report_metric tool with:');
+  lines.push(`      blueprintId: "${input.blueprintId}"`);
+  lines.push('      metrics:');
+  lines.push('        - metricName: "Metric Name"');
+  lines.push('          actualValue: "measured value"');
   lines.push('');
 
   // Step 5
@@ -2004,9 +2008,9 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push('');
   lines.push('**CLI**:');
   lines.push('');
-  lines.push(`    agentblueprint sync <blueprint-id>`);
+  lines.push(`    agentblueprint sync --blueprint ${input.blueprintId}`);
   lines.push('');
-  lines.push('When you observe actual metric values, report them:');
+  lines.push('When you observe actual metric values, report them via MCP tool:');
   lines.push('');
   lines.push('    Use the report_metric tool with:');
   lines.push(`      blueprintId: "${input.blueprintId}"`);
@@ -2192,7 +2196,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('');
   lines.push('**CLI**:');
   lines.push('');
-  lines.push(`    agentblueprint sync <blueprint-id>`);
+  lines.push(`    agentblueprint sync --blueprint ${input.blueprintId}`);
   lines.push('');
   lines.push('### Reporting metrics');
   lines.push('');
@@ -2421,7 +2425,7 @@ function buildImplementationState(input: SkillRenderInput): string {
   // Header
   lines.push('# implementation-state.yaml');
   lines.push('# Updated by the coding agent as implementation progresses.');
-  lines.push('# Sync back to Agent Blueprint: agentblueprint sync <blueprint-id>');
+  lines.push(`# Sync back to Agent Blueprint: agentblueprint sync --blueprint ${input.blueprintId}`);
   lines.push('');
   lines.push('schema_version: "1.0"');
   lines.push(`blueprint_id: "${input.blueprintId}"`);
@@ -2548,7 +2552,7 @@ function buildAgentsMd(input: SkillRenderInput): string {
   lines.push('');
   lines.push('**CLI** (alternative):');
   lines.push('');
-  lines.push(`    agentblueprint sync <blueprint-id>`);
+  lines.push(`    agentblueprint sync --blueprint ${bpId}`);
   lines.push('');
   lines.push('Both methods accept the data from implementation-state.yaml. Keep that file');
   lines.push('updated as you work.');
@@ -2565,7 +2569,7 @@ function buildAgentsMd(input: SkillRenderInput): string {
 
   lines.push('## How to report metrics');
   lines.push('');
-  lines.push('**MCP tool** (preferred):');
+  lines.push('**MCP tool**:');
   lines.push('');
   lines.push('    Use the report_metric tool with:');
   lines.push(`      blueprintId: "${bpId}"`);
@@ -2574,9 +2578,7 @@ function buildAgentsMd(input: SkillRenderInput): string {
   lines.push('          actualValue: "measured value"');
   lines.push('          notes: "how/where you measured this"');
   lines.push('');
-  lines.push('**CLI**:');
-  lines.push('');
-  lines.push(`    agentblueprint report-metric <blueprint-id> --metric "Metric Name" --value "measured value"`);
+  lines.push('Metric reporting is MCP-only. There is no CLI equivalent yet.');
   lines.push('');
 
   lines.push('## Documenting deviations');
