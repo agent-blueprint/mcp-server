@@ -195,7 +195,9 @@ describe('renderSkillDirectory', () => {
     expect(paths).toContain('GETTING-STARTED.md');
     expect(paths).toContain('scripts/validate-spec.sh');
     expect(paths).toContain('implementation-state.yaml');
-    expect(files.size).toBe(13);
+    expect(paths).toContain('AGENTS.md');
+    expect(paths).toContain('hooks/claude-code-sync.json');
+    expect(files.size).toBe(15);
   });
 
   it('SKILL.md starts with YAML frontmatter', () => {
@@ -431,7 +433,7 @@ describe('renderSkillDirectory with missing data', () => {
     };
     // Should not throw
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(13);
+    expect(files.size).toBe(15);
   });
 
   it('SKILL.md renders phases from implementation plan epics', () => {
@@ -761,6 +763,132 @@ describe('GETTING-STARTED.md implementation state reference', () => {
   });
 });
 
+describe('GETTING-STARTED.md sync enhancements', () => {
+  it('Step 5 has sync trigger points', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('After implementing an agent');
+    expect(guide).toContain('After connecting an integration');
+  });
+
+  it('Step 5 has MCP tool examples', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('sync_implementation_state');
+    expect(guide).toContain('report_metric');
+  });
+
+  it('Step 5 references AGENTS.md', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('AGENTS.md');
+  });
+
+  it('Step 5 references hooks/claude-code-sync.json', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('hooks/claude-code-sync.json');
+  });
+
+  it('Step 5 includes the blueprint ID in tool examples', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('bp-123');
+  });
+});
+
+describe('AGENTS.md', () => {
+  it('contains sync trigger points', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const agents = files.get('AGENTS.md')!;
+    expect(agents).toContain('After implementing an agent');
+    expect(agents).toContain('At the end of every coding session');
+  });
+
+  it('contains MCP tool examples', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const agents = files.get('AGENTS.md')!;
+    expect(agents).toContain('sync_implementation_state');
+    expect(agents).toContain('report_metric');
+  });
+
+  it('contains CLI examples', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const agents = files.get('AGENTS.md')!;
+    expect(agents).toContain('agentblueprint sync');
+  });
+
+  it('includes the blueprint ID', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const agents = files.get('AGENTS.md')!;
+    expect(agents).toContain('bp-123');
+  });
+
+  it('contains deviation documentation guidance', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const agents = files.get('AGENTS.md')!;
+    expect(agents).toContain('deviations');
+    expect(agents).toContain('implementation-state.yaml');
+  });
+});
+
+describe('hooks/claude-code-sync.json', () => {
+  it('is valid JSON', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const hookContent = files.get('hooks/claude-code-sync.json')!;
+    expect(() => JSON.parse(hookContent)).not.toThrow();
+  });
+
+  it('has Stop hook structure', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const config = JSON.parse(files.get('hooks/claude-code-sync.json')!);
+    expect(config.hooks).toBeDefined();
+    expect(config.hooks.Stop).toBeDefined();
+    expect(Array.isArray(config.hooks.Stop)).toBe(true);
+    expect(config.hooks.Stop[0].hooks[0].type).toBe('command');
+  });
+
+  it('does not include matcher field (Stop hooks do not support matchers)', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const config = JSON.parse(files.get('hooks/claude-code-sync.json')!);
+    expect(config.hooks.Stop[0]).not.toHaveProperty('matcher');
+  });
+
+  it('checks stop_hook_active to prevent infinite loops', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const config = JSON.parse(files.get('hooks/claude-code-sync.json')!);
+    const command = config.hooks.Stop[0].hooks[0].command;
+    expect(command).toContain('stop_hook_active');
+  });
+
+  it('uses jq for JSON parsing', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const config = JSON.parse(files.get('hooks/claude-code-sync.json')!);
+    const command = config.hooks.Stop[0].hooks[0].command;
+    expect(command).toContain('jq');
+  });
+
+  it('uses git status --porcelain to catch untracked files', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const config = JSON.parse(files.get('hooks/claude-code-sync.json')!);
+    const command = config.hooks.Stop[0].hooks[0].command;
+    expect(command).toContain('git status --porcelain');
+  });
+
+  it('includes the blueprint ID', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const config = JSON.parse(files.get('hooks/claude-code-sync.json')!);
+    const command = config.hooks.Stop[0].hooks[0].command;
+    expect(command).toContain('bp-123');
+  });
+
+  it('has a 30-second timeout', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const config = JSON.parse(files.get('hooks/claude-code-sync.json')!);
+    expect(config.hooks.Stop[0].hooks[0].timeout).toBe(30);
+  });
+});
+
 describe('validate-spec.sh implementation state check', () => {
   it('checks for implementation-state.yaml', () => {
     const files = renderSkillDirectory(minimalInput);
@@ -875,7 +1003,7 @@ describe('renderSkillDirectory with no reality data', () => {
       progress: null,
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(13);
+    expect(files.size).toBe(15);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
     expect(files.has('RECOMMENDATIONS.md')).toBe(false);
   });
@@ -883,7 +1011,7 @@ describe('renderSkillDirectory with no reality data', () => {
   it('produces 13 files with undefined implementationState', () => {
     const input: SkillRenderInput = { ...minimalInput };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(13);
+    expect(files.size).toBe(15);
   });
 
   it('treats all-not_started state as no data', () => {
@@ -898,7 +1026,7 @@ describe('renderSkillDirectory with no reality data', () => {
       },
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(13);
+    expect(files.size).toBe(15);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
     expect(files.has('RECOMMENDATIONS.md')).toBe(false);
   });
@@ -909,7 +1037,7 @@ describe('renderSkillDirectory with no reality data', () => {
       progress: { ...sampleProgress, actuals: [], summary: { ...sampleProgress.summary, metricsRecorded: 0, onTrack: 0, minorDeviation: 0, majorDeviation: 0 } },
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(13);
+    expect(files.size).toBe(15);
     expect(files.has('RECOMMENDATIONS.md')).toBe(false);
   });
 });
@@ -920,9 +1048,9 @@ describe('renderSkillDirectory with implementation state only', () => {
     implementationState: sampleImplementationState,
   };
 
-  it('produces 15 files (13 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
+  it('produces 17 files (15 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
     const files = renderSkillDirectory(stateOnlyInput);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(17);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });
@@ -979,6 +1107,25 @@ describe('renderSkillDirectory with implementation state only', () => {
     expect(guide).toContain('RECOMMENDATIONS.md');
   });
 
+  it('return-visit Step 5 has MCP tool examples', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('sync_implementation_state');
+    expect(guide).toContain('report_metric');
+  });
+
+  it('return-visit Step 5 references AGENTS.md', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('AGENTS.md');
+  });
+
+  it('return-visit Step 5 references hooks config', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('hooks/claude-code-sync.json');
+  });
+
   it('RECOMMENDATIONS.md contains deviation review', () => {
     const files = renderSkillDirectory(stateOnlyInput);
     const recs = files.get('RECOMMENDATIONS.md')!;
@@ -1000,9 +1147,9 @@ describe('renderSkillDirectory with progress only', () => {
     progress: sampleProgress,
   };
 
-  it('produces 14 files (13 + RECOMMENDATIONS.md, no CURRENT-STATE.md)', () => {
+  it('produces 16 files (15 + RECOMMENDATIONS.md, no CURRENT-STATE.md)', () => {
     const files = renderSkillDirectory(progressOnlyInput);
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(16);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
   });
@@ -1038,9 +1185,9 @@ describe('renderSkillDirectory with full reality data', () => {
     progress: sampleProgress,
   };
 
-  it('produces 15 files', () => {
+  it('produces 17 files', () => {
     const files = renderSkillDirectory(fullRealityInput);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(17);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });

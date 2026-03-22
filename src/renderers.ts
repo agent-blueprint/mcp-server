@@ -1994,12 +1994,30 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   // Step 5
   lines.push('## Step 5: Sync your progress');
   lines.push('');
-  lines.push('After implementing each agent or making significant changes:');
+  lines.push('After implementing each agent or making significant changes, sync immediately:');
   lines.push('');
-  lines.push('  agentblueprint sync <blueprint-id>');
+  lines.push('**MCP tool** (preferred):');
   lines.push('');
-  lines.push('This keeps the loop closed. Next time you download this blueprint,');
-  lines.push('you\'ll see updated recommendations based on your latest progress.');
+  lines.push('    Use the sync_implementation_state tool with:');
+  lines.push(`      blueprintId: "${input.blueprintId}"`);
+  lines.push('      stateData: <contents of implementation-state.yaml as JSON>');
+  lines.push('');
+  lines.push('**CLI**:');
+  lines.push('');
+  lines.push(`    agentblueprint sync <blueprint-id>`);
+  lines.push('');
+  lines.push('When you observe actual metric values, report them:');
+  lines.push('');
+  lines.push('    Use the report_metric tool with:');
+  lines.push(`      blueprintId: "${input.blueprintId}"`);
+  lines.push('      metrics:');
+  lines.push('        - metricName: "Metric Name"');
+  lines.push('          actualValue: "measured value"');
+  lines.push('');
+  lines.push('See `AGENTS.md` for trigger points, deviation rules, and full sync guidance.');
+  lines.push('');
+  lines.push('**Claude Code users**: See `hooks/claude-code-sync.json` for a Stop hook that');
+  lines.push('reminds you to sync when implementation-state.yaml has unsynced changes.');
   lines.push('');
 
   // Platform patterns (same as first visit)
@@ -2156,15 +2174,40 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('5. Update `overall_status` as you progress.');
   lines.push('6. Fill in the `platform` section with the actual platform, version, and environment.');
   lines.push('');
-  lines.push('When the full team is deployed:');
+  lines.push('### Sync trigger points');
   lines.push('');
-  lines.push('- Review `metrics_observed` and fill in actual values from the running system.');
-  lines.push('- Sync your state back to Agent Blueprint:');
+  lines.push('Sync after each of these events (do not wait until the end):');
+  lines.push('- After implementing an agent');
+  lines.push('- After connecting an integration');
+  lines.push('- After modifying an agent\'s behavior');
+  lines.push('- At the end of every coding session');
   lines.push('');
-  lines.push('  agentblueprint sync <blueprint-id>');
+  lines.push('### How to sync');
   lines.push('');
-  lines.push('This closes the loop: Agent Blueprint tracks what was actually built, measures');
-  lines.push('outcomes against predictions, and generates better recommendations next time.');
+  lines.push('**MCP tool** (preferred when Agent Blueprint MCP server is connected):');
+  lines.push('');
+  lines.push('    Use the sync_implementation_state tool with:');
+  lines.push(`      blueprintId: "${input.blueprintId}"`);
+  lines.push('      stateData: <contents of implementation-state.yaml as JSON>');
+  lines.push('');
+  lines.push('**CLI**:');
+  lines.push('');
+  lines.push(`    agentblueprint sync <blueprint-id>`);
+  lines.push('');
+  lines.push('### Reporting metrics');
+  lines.push('');
+  lines.push('When you observe actual metric values in the running system, report them:');
+  lines.push('');
+  lines.push('    Use the report_metric tool with:');
+  lines.push(`      blueprintId: "${input.blueprintId}"`);
+  lines.push('      metrics:');
+  lines.push('        - metricName: "Metric Name"');
+  lines.push('          actualValue: "measured value"');
+  lines.push('');
+  lines.push('See `AGENTS.md` for the full sync rules and all trigger points.');
+  lines.push('');
+  lines.push('**Claude Code users**: See `hooks/claude-code-sync.json` for a Stop hook that');
+  lines.push('reminds you to sync when implementation-state.yaml has unsynced changes.');
   lines.push('');
 
   // Platform patterns
@@ -2467,6 +2510,140 @@ function buildImplementationState(input: SkillRenderInput): string {
 }
 
 // =============================================================================
+// AGENTS.MD -- UNIVERSAL SYNC RULES
+// =============================================================================
+
+function buildAgentsMd(input: SkillRenderInput): string {
+  const bpId = input.blueprintId;
+  const lines: string[] = [];
+
+  lines.push('# Sync Rules');
+  lines.push('');
+  lines.push('Rules for keeping Agent Blueprint in sync with your implementation.');
+  lines.push('These apply to ALL coding agents regardless of IDE or framework.');
+  lines.push('');
+
+  lines.push('## Blueprint ID');
+  lines.push('');
+  lines.push(`    ${bpId}`);
+  lines.push('');
+
+  lines.push('## When to sync implementation state');
+  lines.push('');
+  lines.push('Sync after each of these events:');
+  lines.push('- After implementing an agent (status: not_started -> implemented)');
+  lines.push('- After connecting an integration to an agent');
+  lines.push('- After modifying an already-implemented agent (status -> modified)');
+  lines.push('- After changing architecture decisions (e.g., switching orchestration pattern)');
+  lines.push('- At the end of every coding session, if any agents changed');
+  lines.push('');
+
+  lines.push('## How to sync');
+  lines.push('');
+  lines.push('**MCP tool** (preferred when Agent Blueprint MCP server is connected):');
+  lines.push('');
+  lines.push('    Use the sync_implementation_state tool with:');
+  lines.push(`      blueprintId: "${bpId}"`);
+  lines.push('      stateData: <contents of implementation-state.yaml as JSON>');
+  lines.push('');
+  lines.push('**CLI** (alternative):');
+  lines.push('');
+  lines.push(`    agentblueprint sync <blueprint-id>`);
+  lines.push('');
+  lines.push('Both methods accept the data from implementation-state.yaml. Keep that file');
+  lines.push('updated as you work.');
+  lines.push('');
+
+  lines.push('## When to report metrics');
+  lines.push('');
+  lines.push('Report metrics when you observe actual values in the running system:');
+  lines.push('- After deploying an agent and observing its first real outputs');
+  lines.push('- When reviewing dashboards or logs that show metric values');
+  lines.push('- During validation testing against success criteria');
+  lines.push('- Periodically as the system runs in production');
+  lines.push('');
+
+  lines.push('## How to report metrics');
+  lines.push('');
+  lines.push('**MCP tool** (preferred):');
+  lines.push('');
+  lines.push('    Use the report_metric tool with:');
+  lines.push(`      blueprintId: "${bpId}"`);
+  lines.push('      metrics:');
+  lines.push('        - metricName: "Metric Name"');
+  lines.push('          actualValue: "measured value"');
+  lines.push('          notes: "how/where you measured this"');
+  lines.push('');
+  lines.push('**CLI**:');
+  lines.push('');
+  lines.push(`    agentblueprint report-metric <blueprint-id> --metric "Metric Name" --value "measured value"`);
+  lines.push('');
+
+  lines.push('## Documenting deviations');
+  lines.push('');
+  lines.push('When you deviate from the spec (different tool, different approach, skipped an agent):');
+  lines.push('1. Update the agent\'s `deviations` array in implementation-state.yaml');
+  lines.push('2. Include a brief reason (e.g., "Used Flow Designer instead of Workflow -- better parallel support")');
+  lines.push('3. Sync so Agent Blueprint can track spec drift and adjust recommendations');
+  lines.push('');
+
+  lines.push('## Why this matters');
+  lines.push('');
+  lines.push('Each sync creates a versioned snapshot. Agent Blueprint uses your progress to:');
+  lines.push('- Generate prioritized next-step recommendations');
+  lines.push('- Track spec drift and surface deviations that need attention');
+  lines.push('- Compare actual performance against predicted targets');
+  lines.push('- Improve future blueprints based on real-world outcomes');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// CLAUDE CODE HOOKS REFERENCE
+// =============================================================================
+
+function buildClaudeCodeHooksConfig(input: SkillRenderInput): string {
+  const bpId = input.blueprintId;
+
+  // Shell command: read stdin, check stop_hook_active, check for implementation-state.yaml changes
+  // Uses jq for JSON parsing (no python3). Uses git status --porcelain to catch both tracked and untracked changes.
+  // Stop hooks: exit 0 with no output = allow stop. Output {"decision":"block","reason":"..."} = block stop.
+  const command = [
+    'INPUT=$(cat);',
+    'ACTIVE=$(echo "$INPUT" | jq -r \'.stop_hook_active // false\');',
+    'if [ "$ACTIVE" = "true" ]; then exit 0; fi;',
+    'if git status --porcelain 2>/dev/null | grep -q "implementation-state.yaml"; then',
+    ` echo '{"decision":"block","reason":"implementation-state.yaml has unsynced changes. Run: agentblueprint sync ${bpId}"}';`,
+    'fi',
+  ].join(' ');
+
+  const config = {
+    _comment: [
+      'Claude Code Stop hook reference for automated Agent Blueprint sync.',
+      'Copy the "hooks" section into .claude/settings.json or .claude/settings.local.json.',
+      'Review and adapt for your project before installing.',
+      `Blueprint ID: ${bpId}`,
+    ].join(' '),
+    hooks: {
+      Stop: [
+        {
+          hooks: [
+            {
+              type: 'command' as const,
+              command,
+              timeout: 30,
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  return JSON.stringify(config, null, 2) + '\n';
+}
+
+// =============================================================================
 // MAIN RENDER FUNCTION
 // =============================================================================
 
@@ -2495,6 +2672,12 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
 
   // Getting Started guide
   files.set('GETTING-STARTED.md', buildGettingStarted(input));
+
+  // Sync rules (universal -- all coding agents via AGENTS.md standard)
+  files.set('AGENTS.md', buildAgentsMd(input));
+
+  // Claude Code hooks reference (agent-specific -- Claude Code only)
+  files.set('hooks/claude-code-sync.json', buildClaudeCodeHooksConfig(input));
 
   // Deployment guides (vendor skill replaces vendor deployment guide when present)
   if (input.generalGuide) {
