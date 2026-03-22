@@ -130,6 +130,12 @@ async function downloadBlueprint(
     client.getBusinessProfile(customerOrgId).catch(() => null),
   ]);
 
+  // Fetch reality data for return visits (non-blocking)
+  const [implementationState, progress] = await Promise.all([
+    client.getImplementationState(blueprintId, customerOrgId).catch(() => null),
+    client.getProgress(blueprintId, customerOrgId).catch(() => null),
+  ]);
+
   const title = (blueprint.data as Record<string, unknown>).title as string
     || blueprint.data.blueprintTitle as string
     || `Blueprint ${blueprintId.slice(0, 8)}`;
@@ -169,6 +175,8 @@ async function downloadBlueprint(
     generalGuide: generalGuideData?.content,
     vendorGuide: vendorGuideInput,
     vendorSkill: vendorSkillInput,
+    implementationState,
+    progress,
   };
 
   // Render
@@ -206,6 +214,14 @@ async function downloadBlueprint(
     console.error(`Expert skill installed: .claude/skills/${vendorSkillInput.skillName}/SKILL.md`);
     console.error('Claude Code will auto-discover this skill in all future sessions.');
   }
+  if (implementationState || (progress && progress.actuals.length > 0)) {
+    console.error('');
+    console.error('Return visit detected: includes implementation state and/or metrics.');
+  }
   console.error('');
-  console.error('Next: Read GETTING-STARTED.md and start implementation.');
+  if (implementationState) {
+    console.error('Next: Read CURRENT-STATE.md and RECOMMENDATIONS.md to continue.');
+  } else {
+    console.error('Next: Read GETTING-STARTED.md and start implementation.');
+  }
 }

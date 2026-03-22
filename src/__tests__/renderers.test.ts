@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-import { renderSkillDirectory, slugify } from '../renderers.js';
+import { renderSkillDirectory, slugify, hasProgressData } from '../renderers.js';
 import type { SkillRenderInput } from '../renderers.js';
+import type { ImplementationStateResponse, ProgressResponse } from '../client.js';
 
 // ─── Test fixtures ──────────────────────────────────────────────────
 
@@ -765,5 +766,434 @@ describe('validate-spec.sh implementation state check', () => {
     const files = renderSkillDirectory(minimalInput);
     const script = files.get('scripts/validate-spec.sh')!;
     expect(script).toContain('check_optional "implementation-state.yaml"');
+  });
+});
+
+// =============================================================================
+// Reality Layer Tests (Living Blueprint Phase 3A)
+// =============================================================================
+
+const sampleImplementationState: ImplementationStateResponse = {
+  id: 'state-1',
+  blueprintId: 'bp-123',
+  organizationId: 'org-1',
+  stateData: {
+    schema_version: '1.0',
+    blueprint_id: 'bp-123',
+    last_updated: '2026-03-20T12:00:00Z',
+    overall_status: 'in_progress',
+    platform: { name: 'ServiceNow', version: 'Australia', environment: 'dev' },
+    agents: [
+      {
+        name: 'Test Agent',
+        status: 'implemented',
+        platform_artifact: 'sys_id:abc123',
+        deviations: ['Used Flow Designer instead of Workflow'],
+        integrations_connected: ['CMDB', 'Service Portal'],
+        notes: 'Working well',
+      },
+    ],
+    architecture: {
+      pattern: 'Supervisor',
+      deviations: [],
+      additional_components: ['Custom REST API'],
+    },
+    metrics_observed: [],
+  },
+  schemaVersion: '1.0',
+  syncedAt: '2026-03-20T12:00:00Z',
+  syncedBy: 'cli',
+  previousStateId: null,
+};
+
+const sampleProgress: ProgressResponse = {
+  blueprintId: 'bp-123',
+  blueprintTitle: 'Test Blueprint',
+  targets: {
+    operational: [{ name: 'Test Pass Rate', target: '99%', unit: '%', direction: 'higher_is_better' }],
+    financial: [{ name: 'ROI', value: '285%', unit: '%', direction: 'higher_is_better' }],
+  },
+  actuals: [
+    {
+      id: 'metric-1',
+      metricName: 'Test Pass Rate',
+      metricType: 'operational',
+      predictedValue: '99%',
+      actualValue: '94%',
+      deviationPercent: -5.05,
+      status: 'minor_deviation',
+      recordedAt: '2026-03-18T10:00:00Z',
+      dataSource: 'manual',
+      recordingCount: 3,
+    },
+  ],
+  summary: {
+    totalTargets: 2,
+    metricsRecorded: 1,
+    onTrack: 0,
+    minorDeviation: 1,
+    majorDeviation: 0,
+  },
+  implementationState: {
+    overallStatus: 'in_progress',
+    agentCount: 1,
+    implementedCount: 1,
+    lastSyncedAt: '2026-03-20T12:00:00Z',
+  },
+};
+
+const twoAgentState: ImplementationStateResponse = {
+  ...sampleImplementationState,
+  stateData: {
+    ...sampleImplementationState.stateData as Record<string, unknown>,
+    agents: [
+      {
+        name: 'Test Agent',
+        status: 'implemented',
+        platform_artifact: 'sys_id:abc123',
+        deviations: ['Used Flow Designer instead of Workflow'],
+        integrations_connected: ['CMDB'],
+        notes: '',
+      },
+      {
+        name: 'Second Agent',
+        status: 'not_started',
+        platform_artifact: '',
+        deviations: [],
+        integrations_connected: [],
+        notes: '',
+      },
+    ],
+  },
+};
+
+describe('renderSkillDirectory with no reality data', () => {
+  it('produces 13 files with null implementationState and progress', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      implementationState: null,
+      progress: null,
+    };
+    const files = renderSkillDirectory(input);
+    expect(files.size).toBe(13);
+    expect(files.has('CURRENT-STATE.md')).toBe(false);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(false);
+  });
+
+  it('produces 13 files with undefined implementationState', () => {
+    const input: SkillRenderInput = { ...minimalInput };
+    const files = renderSkillDirectory(input);
+    expect(files.size).toBe(13);
+  });
+
+  it('treats all-not_started state as no data', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      implementationState: {
+        ...sampleImplementationState,
+        stateData: {
+          ...sampleImplementationState.stateData as Record<string, unknown>,
+          agents: [{ name: 'Test Agent', status: 'not_started', platform_artifact: '', deviations: [], integrations_connected: [], notes: '' }],
+        },
+      },
+    };
+    const files = renderSkillDirectory(input);
+    expect(files.size).toBe(13);
+    expect(files.has('CURRENT-STATE.md')).toBe(false);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(false);
+  });
+
+  it('treats empty progress actuals as no data', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      progress: { ...sampleProgress, actuals: [], summary: { ...sampleProgress.summary, metricsRecorded: 0, onTrack: 0, minorDeviation: 0, majorDeviation: 0 } },
+    };
+    const files = renderSkillDirectory(input);
+    expect(files.size).toBe(13);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(false);
+  });
+});
+
+describe('renderSkillDirectory with implementation state only', () => {
+  const stateOnlyInput: SkillRenderInput = {
+    ...minimalInput,
+    implementationState: sampleImplementationState,
+  };
+
+  it('produces 15 files (13 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    expect(files.size).toBe(15);
+    expect(files.has('CURRENT-STATE.md')).toBe(true);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(true);
+  });
+
+  it('CURRENT-STATE.md contains agent status table', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).toContain('## Agent Implementation Status');
+    expect(state).toContain('Test Agent');
+    expect(state).toContain('implemented');
+    expect(state).toContain('sys_id:abc123');
+  });
+
+  it('CURRENT-STATE.md contains platform comparison', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).toContain('## Platform');
+    expect(state).toContain('ServiceNow');
+    expect(state).toContain('Australia');
+  });
+
+  it('CURRENT-STATE.md contains deviations', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).toContain('Flow Designer');
+  });
+
+  it('CURRENT-STATE.md contains integrations', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).toContain('## Integrations Connected');
+    expect(state).toContain('CMDB');
+    expect(state).toContain('Service Portal');
+  });
+
+  it('CURRENT-STATE.md contains additional components', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).toContain('## Additional Components');
+    expect(state).toContain('Custom REST API');
+  });
+
+  it('CURRENT-STATE.md does not contain Performance section without progress', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).not.toContain('## Performance Against Targets');
+  });
+
+  it('GETTING-STARTED.md is return-visit format', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('CONTINUING AN IMPLEMENTATION');
+    expect(guide).toContain('CURRENT-STATE.md');
+    expect(guide).toContain('RECOMMENDATIONS.md');
+  });
+
+  it('RECOMMENDATIONS.md contains deviation review', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const recs = files.get('RECOMMENDATIONS.md')!;
+    expect(recs).toContain('## Deviations to Review');
+    expect(recs).toContain('Flow Designer');
+  });
+
+  it('evaluation-criteria.md is unchanged without progress', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+    expect(evalCriteria).not.toContain('| Actual |');
+    expect(evalCriteria).not.toContain('| Status |');
+  });
+});
+
+describe('renderSkillDirectory with progress only', () => {
+  const progressOnlyInput: SkillRenderInput = {
+    ...minimalInput,
+    progress: sampleProgress,
+  };
+
+  it('produces 14 files (13 + RECOMMENDATIONS.md, no CURRENT-STATE.md)', () => {
+    const files = renderSkillDirectory(progressOnlyInput);
+    expect(files.size).toBe(14);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(true);
+    expect(files.has('CURRENT-STATE.md')).toBe(false);
+  });
+
+  it('GETTING-STARTED.md is first-visit format', () => {
+    const files = renderSkillDirectory(progressOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).not.toContain('CONTINUING AN IMPLEMENTATION');
+    expect(guide).toContain('YOU ARE THE IMPLEMENTER');
+  });
+
+  it('evaluation-criteria.md is enriched with Actual columns', () => {
+    const files = renderSkillDirectory(progressOnlyInput);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+    expect(evalCriteria).toContain('| Actual |');
+    expect(evalCriteria).toContain('94%');
+    expect(evalCriteria).toContain('minor_deviation');
+  });
+
+  it('RECOMMENDATIONS.md contains metric deviation', () => {
+    const files = renderSkillDirectory(progressOnlyInput);
+    const recs = files.get('RECOMMENDATIONS.md')!;
+    expect(recs).toContain('## Metrics Requiring Attention');
+    expect(recs).toContain('Test Pass Rate');
+    expect(recs).toContain('minor_deviation');
+  });
+});
+
+describe('renderSkillDirectory with full reality data', () => {
+  const fullRealityInput: SkillRenderInput = {
+    ...fullInput,
+    implementationState: twoAgentState,
+    progress: sampleProgress,
+  };
+
+  it('produces 15 files', () => {
+    const files = renderSkillDirectory(fullRealityInput);
+    expect(files.size).toBe(15);
+    expect(files.has('CURRENT-STATE.md')).toBe(true);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(true);
+  });
+
+  it('CURRENT-STATE.md includes performance table', () => {
+    const files = renderSkillDirectory(fullRealityInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).toContain('## Performance Against Targets');
+    expect(state).toContain('Test Pass Rate');
+    expect(state).toContain('94%');
+  });
+
+  it('CURRENT-STATE.md shows agent count summary', () => {
+    const files = renderSkillDirectory(fullRealityInput);
+    const state = files.get('CURRENT-STATE.md')!;
+    expect(state).toContain('1 of 2 agents implemented');
+  });
+
+  it('RECOMMENDATIONS.md contains both agent and metric recommendations', () => {
+    const files = renderSkillDirectory(fullRealityInput);
+    const recs = files.get('RECOMMENDATIONS.md')!;
+    expect(recs).toContain('## Next Agents to Implement');
+    expect(recs).toContain('Second Agent');
+    expect(recs).toContain('## Metrics Requiring Attention');
+    expect(recs).toContain('Test Pass Rate');
+  });
+
+  it('RECOMMENDATIONS.md includes financial impact note with business case', () => {
+    const files = renderSkillDirectory(fullRealityInput);
+    const recs = files.get('RECOMMENDATIONS.md')!;
+    expect(recs).toContain('## Financial Impact Note');
+    expect(recs).toContain('285%');
+  });
+
+  it('GETTING-STARTED.md is return-visit format with metrics summary', () => {
+    const files = renderSkillDirectory(fullRealityInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('CONTINUING AN IMPLEMENTATION');
+    expect(guide).toContain('1 of 2 agents implemented');
+    expect(guide).toContain('minor deviation');
+  });
+
+  it('evaluation-criteria.md is enriched with actuals', () => {
+    const files = renderSkillDirectory(fullRealityInput);
+    const evalCriteria = files.get('references/evaluation-criteria.md')!;
+    expect(evalCriteria).toContain('| Actual |');
+    expect(evalCriteria).toContain('94%');
+  });
+});
+
+describe('RECOMMENDATIONS.md ordering', () => {
+  it('in-progress agents show as "Continue"', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        enhancedDigitalTeam: [
+          { name: 'Agent A', role: 'Tester', agentRole: 'Worker' },
+          { name: 'Agent B', role: 'Builder', agentRole: 'Worker' },
+        ],
+      },
+      implementationState: {
+        ...sampleImplementationState,
+        stateData: {
+          ...sampleImplementationState.stateData as Record<string, unknown>,
+          agents: [
+            { name: 'Agent A', status: 'in_progress', platform_artifact: '', deviations: [], integrations_connected: [], notes: '' },
+            { name: 'Agent B', status: 'not_started', platform_artifact: '', deviations: [], integrations_connected: [], notes: '' },
+          ],
+        },
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const recs = files.get('RECOMMENDATIONS.md')!;
+    expect(recs).toContain('Continue Agent A');
+    expect(recs).toContain('Implement Agent B');
+  });
+
+  it('major deviations before minor in metrics', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      progress: {
+        ...sampleProgress,
+        actuals: [
+          { id: 'm1', metricName: 'Minor Metric', metricType: 'operational', predictedValue: '90%', actualValue: '80%', deviationPercent: -11.1, status: 'minor_deviation', recordedAt: '2026-03-18T10:00:00Z', dataSource: 'manual', recordingCount: 1 },
+          { id: 'm2', metricName: 'Major Metric', metricType: 'operational', predictedValue: '95%', actualValue: '60%', deviationPercent: -36.8, status: 'major_deviation', recordedAt: '2026-03-18T10:00:00Z', dataSource: 'manual', recordingCount: 1 },
+        ],
+        summary: { totalTargets: 2, metricsRecorded: 2, onTrack: 0, minorDeviation: 1, majorDeviation: 1 },
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const recs = files.get('RECOMMENDATIONS.md')!;
+    const majorIdx = recs.indexOf('Major Metric');
+    const minorIdx = recs.indexOf('Minor Metric');
+    expect(majorIdx).toBeLessThan(minorIdx);
+  });
+});
+
+describe('graceful degradation', () => {
+  it('handles null fields in stateData without crashing', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      implementationState: {
+        ...sampleImplementationState,
+        stateData: {
+          overall_status: 'in_progress',
+          agents: [{ name: 'Agent', status: 'implemented', platform_artifact: null, deviations: null, integrations_connected: null, notes: null }],
+          platform: null,
+          architecture: null,
+        } as any,
+      },
+    };
+    // Should not throw
+    const files = renderSkillDirectory(input);
+    expect(files.has('CURRENT-STATE.md')).toBe(true);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(true);
+  });
+
+  it('all plan files still present with reality data', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      implementationState: sampleImplementationState,
+      progress: sampleProgress,
+    };
+    const files = renderSkillDirectory(input);
+    expect(files.has('SKILL.md')).toBe(true);
+    expect(files.has('references/agent-specifications.md')).toBe(true);
+    expect(files.has('references/financial-case.md')).toBe(true);
+    expect(files.has('references/implementation-roadmap.md')).toBe(true);
+    expect(files.has('GETTING-STARTED.md')).toBe(true);
+    expect(files.has('implementation-state.yaml')).toBe(true);
+  });
+
+  it('RECOMMENDATIONS.md shows all-clear when everything is on track', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      implementationState: {
+        ...sampleImplementationState,
+        stateData: {
+          ...sampleImplementationState.stateData as Record<string, unknown>,
+          agents: [{ name: 'Test Agent', status: 'implemented', platform_artifact: 'x', deviations: [], integrations_connected: [], notes: '' }],
+        },
+      },
+      progress: {
+        ...sampleProgress,
+        actuals: [
+          { id: 'm1', metricName: 'Test Pass Rate', metricType: 'operational', predictedValue: '99%', actualValue: '99.5%', status: 'on_track', recordedAt: '2026-03-18T10:00:00Z', dataSource: 'manual', recordingCount: 1 },
+        ],
+        summary: { totalTargets: 1, metricsRecorded: 1, onTrack: 1, minorDeviation: 0, majorDeviation: 0 },
+      },
+    };
+    const files = renderSkillDirectory(input);
+    const recs = files.get('RECOMMENDATIONS.md')!;
+    expect(recs).toContain('All agents implemented and metrics on track');
   });
 });

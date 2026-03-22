@@ -5,6 +5,8 @@
 // into a Map<string, string> of { relativePath → fileContent }
 // =============================================================================
 
+import type { ImplementationStateResponse, ProgressResponse } from './client.js';
+
 export interface SkillRenderInput {
   blueprintTitle: string;
   blueprintId: string;
@@ -17,6 +19,8 @@ export interface SkillRenderInput {
   generalGuide?: string;
   vendorGuide?: { platform: string; content: string };
   vendorSkill?: { platform: string; skillName: string; content: string };
+  implementationState?: ImplementationStateResponse | null;
+  progress?: ProgressResponse | null;
 }
 
 // =============================================================================
@@ -1294,10 +1298,361 @@ function normalizeMetricName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+// =============================================================================
+// REALITY LAYER HELPERS (Living Blueprint Phase 3A)
+// =============================================================================
+
+function hasImplementationData(input: SkillRenderInput): boolean {
+  if (!input.implementationState) return false;
+  const sd = rec(input.implementationState.stateData);
+  const agents = arr(sd.agents);
+  return agents.some((a: unknown) => str(rec(a).status) !== 'not_started');
+}
+
+export function hasProgressData(input: SkillRenderInput): boolean {
+  if (!input.progress) return false;
+  return input.progress.actuals.length > 0;
+}
+
+function buildProgressByName(input: SkillRenderInput): Map<string, { actualValue: string; status: string; recordedAt: string; deviationPercent?: number; predictedValue: string }> {
+  const map = new Map<string, { actualValue: string; status: string; recordedAt: string; deviationPercent?: number; predictedValue: string }>();
+  if (!input.progress) return map;
+  for (const actual of input.progress.actuals) {
+    map.set(normalizeMetricName(actual.metricName), {
+      actualValue: actual.actualValue,
+      status: actual.status,
+      recordedAt: actual.recordedAt,
+      deviationPercent: actual.deviationPercent,
+      predictedValue: actual.predictedValue,
+    });
+  }
+  return map;
+}
+
+// =============================================================================
+// CURRENT-STATE.md (new file on return visits)
+// =============================================================================
+
+function buildCurrentState(input: SkillRenderInput): string {
+  const lines: string[] = [];
+  const state = input.implementationState!;
+  const sd = rec(state.stateData);
+  const stateAgents = arr(sd.agents);
+  const bp = rec(input.blueprintData);
+  const team = arr(bp.enhancedDigitalTeam);
+
+  const syncDate = state.syncedAt ? state.syncedAt.split('T')[0] : 'unknown';
+  const overallStatus = str(sd.overall_status) || 'unknown';
+
+  lines.push('# Current State', '');
+  lines.push(`> Last synced: ${syncDate} | Overall: ${overallStatus}`, '');
+
+  // Agent status table
+  const bpAgentsByName = new Map<string, Record<string, unknown>>();
+  for (const a of team) {
+    const agent = rec(a);
+    bpAgentsByName.set(str(agent.name).toLowerCase().trim(), agent);
+  }
+
+  lines.push('## Agent Implementation Status', '');
+  lines.push('| # | Agent | Planned Role | Status | Platform Artifact | Deviations |');
+  lines.push('|---|-------|-------------|--------|-------------------|------------|');
+
+  let implementedCount = 0;
+  const totalAgents = stateAgents.length || team.length;
+
+  for (let i = 0; i < stateAgents.length; i++) {
+    const sa = rec(stateAgents[i]);
+    const name = str(sa.name);
+    const status = str(sa.status) || 'not_started';
+    const artifact = str(sa.platform_artifact) || '-';
+    const deviations = arr(sa.deviations);
+    const devStr = deviations.length > 0 ? deviations.map((d: unknown) => str(d)).join('; ') : '-';
+
+    const bpAgent = bpAgentsByName.get(name.toLowerCase().trim());
+    const plannedRole = bpAgent ? str(bpAgent.role) || str(bpAgent.agentRole) || '-' : '-';
+
+    if (status === 'implemented' || status === 'modified') implementedCount++;
+
+    lines.push(`| ${i + 1} | ${name} | ${plannedRole} | ${status} | ${artifact} | ${devStr} |`);
+  }
+
+  lines.push('');
+  lines.push(`${implementedCount} of ${totalAgents} agents implemented.`, '');
+
+  // Platform comparison
+  const stPlatform = rec(sd.platform);
+  const stArch = rec(sd.architecture);
+  const plannedPlatform = getPlatformName(bp);
+  const plannedPattern = getAgenticPattern(bp);
+  const actualPlatform = str(stPlatform.name) || 'Not reported';
+  const actualPattern = str(stArch.pattern) || 'Not reported';
+
+  if (actualPlatform !== 'Not reported' || actualPattern !== 'Not reported') {
+    lines.push('## Platform', '');
+    lines.push('| | Planned | Actual |');
+    lines.push('|---|---------|--------|');
+    lines.push(`| Platform | ${plannedPlatform} | ${actualPlatform} |`);
+    lines.push(`| Pattern | ${plannedPattern} | ${actualPattern} |`);
+    if (str(stPlatform.version)) lines.push(`| Version | - | ${str(stPlatform.version)} |`);
+    if (str(stPlatform.environment)) lines.push(`| Environment | - | ${str(stPlatform.environment)} |`);
+    lines.push('');
+  }
+
+  // Architecture deviations
+  const archDevs = arr(stArch.deviations).filter((d: unknown) => str(d));
+  if (archDevs.length > 0) {
+    lines.push('## Architecture Deviations', '');
+    for (const d of archDevs) lines.push(`- ${str(d)}`);
+    lines.push('');
+  }
+
+  // Additional components
+  const addlComponents = arr(stArch.additional_components).filter((c: unknown) => str(c));
+  if (addlComponents.length > 0) {
+    lines.push('## Additional Components', '');
+    for (const c of addlComponents) lines.push(`- ${str(c)}`);
+    lines.push('');
+  }
+
+  // Integrations connected (per agent)
+  const agentsWithIntegrations = stateAgents
+    .map((a: unknown) => rec(a))
+    .filter(a => arr(a.integrations_connected).length > 0);
+  if (agentsWithIntegrations.length > 0) {
+    lines.push('## Integrations Connected', '');
+    for (const a of agentsWithIntegrations) {
+      const integrations = arr(a.integrations_connected).map((i: unknown) => str(i)).join(', ');
+      lines.push(`- **${str(a.name)}**: ${integrations}`);
+    }
+    lines.push('');
+  }
+
+  // Performance against targets (if progress data exists)
+  if (hasProgressData(input)) {
+    const progress = input.progress!;
+    lines.push('## Performance Against Targets', '');
+    lines.push('| Metric | Target | Actual | Status | Measured |');
+    lines.push('|--------|--------|--------|--------|----------|');
+
+    for (const actual of progress.actuals) {
+      const measured = actual.recordedAt ? actual.recordedAt.split('T')[0] : '-';
+      lines.push(`| ${actual.metricName} | ${actual.predictedValue} | ${actual.actualValue} | ${actual.status} | ${measured} |`);
+    }
+
+    lines.push('');
+    const s = progress.summary;
+    lines.push(`${s.onTrack} on track, ${s.minorDeviation} minor deviation, ${s.majorDeviation} major deviation.`, '');
+  }
+
+  return lines.join('\n');
+}
+
+// =============================================================================
+// RECOMMENDATIONS.md (new file on return visits)
+// =============================================================================
+
+function buildRecommendations(input: SkillRenderInput): string {
+  const lines: string[] = [];
+  lines.push('# Recommendations', '');
+  lines.push('> Prioritized next actions based on implementation state and performance data.', '');
+
+  let recNum = 0;
+  const bp = rec(input.blueprintData);
+  const team = arr(bp.enhancedDigitalTeam);
+  const bc = rec(input.businessCaseData);
+
+  // Build epic lookup for priority ordering
+  const epics = arr(rec(input.implementationPlanData).epics);
+  const epicByNormalizedName = new Map<string, { phase: string; priority: string; dependencies: string[] }>();
+  for (const e of epics) {
+    const epic = rec(e);
+    const name = str(epic.name).toLowerCase().trim();
+    epicByNormalizedName.set(name, {
+      phase: str(epic.phase),
+      priority: str(epic.priority) || 'P2',
+      dependencies: arr(epic.dependencies).map((d: unknown) => typeof d === 'string' ? d : str(rec(d).description) || str(d)),
+    });
+  }
+
+  // Helper to find the best-matching epic for an agent
+  function findEpicForAgent(agentName: string): { phase: string; priority: string; dependencies: string[] } | undefined {
+    const norm = agentName.toLowerCase().trim();
+    // Direct match
+    for (const [epicName, epic] of epicByNormalizedName) {
+      if (epicName.includes(norm) || norm.includes(epicName)) return epic;
+    }
+    // Word overlap
+    const agentWords = norm.split(/\s+/).filter(w => w.length > 2);
+    for (const [epicName, epic] of epicByNormalizedName) {
+      for (const word of agentWords) {
+        if (epicName.includes(word)) return epic;
+      }
+    }
+    return undefined;
+  }
+
+  // Priority sort key: P0=0, P1=1, P2=2, unknown=3
+  function priorityKey(p: string): number {
+    if (p === 'P0') return 0;
+    if (p === 'P1') return 1;
+    if (p === 'P2') return 2;
+    return 3;
+  }
+
+  // --- Section 1: Unimplemented agents ---
+  if (hasImplementationData(input)) {
+    const sd = rec(input.implementationState!.stateData);
+    const stateAgents = arr(sd.agents);
+
+    const implementedNames = new Set(
+      stateAgents
+        .map((a: unknown) => rec(a))
+        .filter(a => str(a.status) === 'implemented' || str(a.status) === 'modified')
+        .map(a => str(a.name).toLowerCase().trim())
+    );
+
+    interface AgentRec {
+      name: string;
+      role: string;
+      status: string;
+      phase: string;
+      priority: string;
+      priorityNum: number;
+    }
+
+    const unimplemented: AgentRec[] = [];
+    for (const sa of stateAgents) {
+      const a = rec(sa);
+      const status = str(a.status);
+      if (status === 'implemented' || status === 'modified' || status === 'skipped') continue;
+
+      const name = str(a.name);
+      const bpAgent = team.find((t: unknown) => str(rec(t).name).toLowerCase().trim() === name.toLowerCase().trim());
+      const role = bpAgent ? str(rec(bpAgent).role) || str(rec(bpAgent).agentRole) : '-';
+      const epic = findEpicForAgent(name);
+      const phase = epic?.phase || '-';
+      const priority = epic?.priority || '-';
+
+      unimplemented.push({
+        name,
+        role,
+        status,
+        phase,
+        priority,
+        priorityNum: priorityKey(priority),
+      });
+    }
+
+    // Sort by roadmap priority
+    unimplemented.sort((a, b) => a.priorityNum - b.priorityNum);
+
+    if (unimplemented.length > 0) {
+      lines.push('## Next Agents to Implement', '');
+      for (const agent of unimplemented) {
+        recNum++;
+        const statusLabel = agent.status === 'in_progress' ? ' (in progress)' : '';
+        lines.push(`### ${recNum}. ${agent.status === 'in_progress' ? 'Continue' : 'Implement'} ${agent.name}${statusLabel}`, '');
+        lines.push(`Role: ${agent.role}`);
+        if (agent.phase !== '-') lines.push(`Roadmap phase: ${agent.phase} | Priority: ${agent.priority}`);
+        lines.push(`Read agent spec in \`references/agent-specifications.md\`.`, '');
+      }
+    }
+  }
+
+  // --- Section 2: Metric deviations ---
+  if (hasProgressData(input)) {
+    const progress = input.progress!;
+    const deviating = progress.actuals
+      .filter(a => a.status === 'major_deviation' || a.status === 'minor_deviation')
+      .sort((a, b) => {
+        // Major before minor
+        if (a.status !== b.status) return a.status === 'major_deviation' ? -1 : 1;
+        // Then by absolute deviation descending
+        const absA = Math.abs(a.deviationPercent ?? 0);
+        const absB = Math.abs(b.deviationPercent ?? 0);
+        return absB - absA;
+      });
+
+    if (deviating.length > 0) {
+      lines.push('## Metrics Requiring Attention', '');
+      for (const metric of deviating) {
+        recNum++;
+        const devPct = metric.deviationPercent != null ? `${metric.deviationPercent > 0 ? '+' : ''}${metric.deviationPercent.toFixed(1)}%` : '-';
+        lines.push(`### ${recNum}. Address ${metric.metricName} deviation`, '');
+        lines.push(`Target: ${metric.predictedValue} | Actual: ${metric.actualValue} | Deviation: ${devPct}`);
+        lines.push(`Status: ${metric.status}`);
+
+        // Financial context
+        const quantifiedROI = rec(rec(bc.benefits).quantifiedROI);
+        if (metric.metricType === 'financial' && str(quantifiedROI.roi)) {
+          lines.push(`Financial impact: This metric is tracked against the projected ${str(quantifiedROI.roi)} ROI in the business case.`);
+        } else if (str(quantifiedROI.roi)) {
+          const annualSavings = str(rec(rec(quantifiedROI.laborCostDetail).projectedSavings).costSavingsAnnual);
+          if (annualSavings) {
+            lines.push(`Financial context: Operational metrics drive the projected ${annualSavings} annual savings in the business case.`);
+          }
+        }
+        lines.push('');
+      }
+    }
+  }
+
+  // --- Section 3: Spec deviations ---
+  if (hasImplementationData(input)) {
+    const sd = rec(input.implementationState!.stateData);
+    const stateAgents = arr(sd.agents);
+
+    const agentsWithDeviations = stateAgents
+      .map((a: unknown) => rec(a))
+      .filter(a => arr(a.deviations).length > 0);
+
+    if (agentsWithDeviations.length > 0) {
+      lines.push('## Deviations to Review', '');
+      for (const agent of agentsWithDeviations) {
+        recNum++;
+        const name = str(agent.name);
+        const bpAgent = team.find((t: unknown) => str(rec(t).name).toLowerCase().trim() === name.toLowerCase().trim());
+        const role = bpAgent ? str(rec(bpAgent).role) || str(rec(bpAgent).agentRole) : '-';
+
+        lines.push(`### ${recNum}. Review deviations: ${name}`, '');
+        lines.push(`Planned role: ${role}`, '');
+        for (const d of arr(agent.deviations)) {
+          lines.push(`- ${str(d)}`);
+        }
+        lines.push('');
+        lines.push('Check if these deviations affect the agent\'s success metrics in `references/evaluation-criteria.md`.', '');
+      }
+    }
+  }
+
+  // --- Section 4: Financial impact note ---
+  if (hasProgressData(input)) {
+    const progress = input.progress!;
+    const deviationCount = progress.summary.minorDeviation + progress.summary.majorDeviation;
+    const quantifiedROI = rec(rec(bc.benefits).quantifiedROI);
+
+    if (deviationCount > 0 && str(quantifiedROI.roi)) {
+      lines.push('## Financial Impact Note', '');
+      const payback = str(quantifiedROI.paybackPeriod);
+      lines.push(`${deviationCount} metric${deviationCount > 1 ? 's are' : ' is'} deviating from targets. The business case projected ${str(quantifiedROI.roi)} ROI${payback ? ` and ${payback} payback period` : ''}.`);
+      lines.push('Track whether deviations affect these projections using Agent Blueprint\'s performance monitoring.', '');
+    }
+  }
+
+  if (recNum === 0) {
+    lines.push('All agents implemented and metrics on track. No action items at this time.', '');
+  }
+
+  return lines.join('\n');
+}
+
 function buildEvaluationCriteria(input: SkillRenderInput): string {
   const { blueprintData, businessCaseData } = input;
   const bp = rec(blueprintData);
   const bc = rec(businessCaseData);
+  const progressMap = buildProgressByName(input);
+  const hasActuals = progressMap.size > 0;
 
   const lines: string[] = [
     '# Evaluation Criteria',
@@ -1388,54 +1743,91 @@ function buildEvaluationCriteria(input: SkillRenderInput): string {
     dedupedOps.push(group[0]);
   }
 
-  const operationalRows = dedupedOps.map(r =>
-    `| ${r.name} | ${r.baseline} | ${r.target} | ${r.direction} | ${r.unit} | ${r.frequency} | ${r.source} |`
-  );
+  const operationalRows = dedupedOps.map(r => {
+    if (hasActuals) {
+      const match = progressMap.get(normalizeMetricName(r.name));
+      const actual = match ? match.actualValue : '-';
+      const status = match ? match.status : '-';
+      const measured = match ? match.recordedAt.split('T')[0] : '-';
+      return `| ${r.name} | ${r.baseline} | ${r.target} | ${actual} | ${status} | ${measured} | ${r.direction} | ${r.unit} | ${r.frequency} | ${r.source} |`;
+    }
+    return `| ${r.name} | ${r.baseline} | ${r.target} | ${r.direction} | ${r.unit} | ${r.frequency} | ${r.source} |`;
+  });
 
   if (operationalRows.length > 0) {
     hasContent = true;
-    lines.push(
-      '## Operational Metrics', '',
-      '| Metric | Baseline | Target | Direction | Unit | Frequency | Source |',
-      '|--------|----------|--------|-----------|------|-----------|--------|',
-      ...operationalRows, '',
-    );
+    if (hasActuals) {
+      lines.push(
+        '## Operational Metrics', '',
+        '| Metric | Baseline | Target | Actual | Status | Measured | Direction | Unit | Frequency | Source |',
+        '|--------|----------|--------|--------|--------|----------|-----------|------|-----------|--------|',
+        ...operationalRows, '',
+      );
+    } else {
+      lines.push(
+        '## Operational Metrics', '',
+        '| Metric | Baseline | Target | Direction | Unit | Frequency | Source |',
+        '|--------|----------|--------|-----------|------|-----------|--------|',
+        ...operationalRows, '',
+      );
+    }
   }
 
   // --- Financial Metrics ---
-  const financialRows: string[] = [];
+  interface FinMetricRow { name: string; target: string; direction: string; unit: string; source: string }
+  const collectedFin: FinMetricRow[] = [];
 
   if (roiFin.length > 0) {
     for (const item of roiFin) {
       const m = rec(item);
-      financialRows.push(
-        `| ${str(m.name)} | ${str(m.predictedValue)} | ${str(m.direction) || '-'} | ${str(m.unit) || '-'} | ${str(m.source)} |`
-      );
+      collectedFin.push({
+        name: str(m.name), target: str(m.predictedValue),
+        direction: str(m.direction) || '-', unit: str(m.unit) || '-', source: str(m.source),
+      });
     }
   } else {
     if (str(quantifiedROI.roi)) {
-      financialRows.push(`| ROI | ${str(quantifiedROI.roi)} | higher_is_better | % | quantifiedROI |`);
+      collectedFin.push({ name: 'ROI', target: str(quantifiedROI.roi), direction: 'higher_is_better', unit: '%', source: 'quantifiedROI' });
     }
     if (str(quantifiedROI.paybackPeriod)) {
-      financialRows.push(`| Payback Period | ${str(quantifiedROI.paybackPeriod)} | lower_is_better | months | quantifiedROI |`);
+      collectedFin.push({ name: 'Payback Period', target: str(quantifiedROI.paybackPeriod), direction: 'lower_is_better', unit: 'months', source: 'quantifiedROI' });
     }
     if (str(quantifiedROI.npv)) {
-      financialRows.push(`| NPV | ${str(quantifiedROI.npv)} | higher_is_better | currency | quantifiedROI |`);
+      collectedFin.push({ name: 'NPV', target: str(quantifiedROI.npv), direction: 'higher_is_better', unit: 'currency', source: 'quantifiedROI' });
     }
     const annualSavings = str(rec(rec(quantifiedROI.laborCostDetail).projectedSavings).costSavingsAnnual);
     if (annualSavings) {
-      financialRows.push(`| Annual Cost Savings | ${annualSavings} | higher_is_better | currency | quantifiedROI |`);
+      collectedFin.push({ name: 'Annual Cost Savings', target: annualSavings, direction: 'higher_is_better', unit: 'currency', source: 'quantifiedROI' });
     }
   }
 
+  const financialRows = collectedFin.map(r => {
+    if (hasActuals) {
+      const match = progressMap.get(normalizeMetricName(r.name));
+      const actual = match ? match.actualValue : '-';
+      const status = match ? match.status : '-';
+      return `| ${r.name} | ${r.target} | ${actual} | ${status} | ${r.direction} | ${r.unit} | ${r.source} |`;
+    }
+    return `| ${r.name} | ${r.target} | ${r.direction} | ${r.unit} | ${r.source} |`;
+  });
+
   if (financialRows.length > 0) {
     hasContent = true;
-    lines.push(
-      '## Financial Metrics', '',
-      '| Metric | Target | Direction | Unit | Source |',
-      '|--------|--------|-----------|------|--------|',
-      ...financialRows, '',
-    );
+    if (hasActuals) {
+      lines.push(
+        '## Financial Metrics', '',
+        '| Metric | Target | Actual | Status | Direction | Unit | Source |',
+        '|--------|--------|--------|--------|-----------|------|--------|',
+        ...financialRows, '',
+      );
+    } else {
+      lines.push(
+        '## Financial Metrics', '',
+        '| Metric | Target | Direction | Unit | Source |',
+        '|--------|--------|-----------|------|--------|',
+        ...financialRows, '',
+      );
+    }
   }
 
   // --- Agent-Level Metrics ---
@@ -1445,18 +1837,34 @@ function buildEvaluationCriteria(input: SkillRenderInput): string {
     const metrics = arr(a.successMetrics);
     for (const item of metrics) {
       const m = rec(item);
-      agentRows.push(`| ${str(a.name)} | ${str(m.metric)} | ${str(m.target)} |`);
+      if (hasActuals) {
+        const match = progressMap.get(normalizeMetricName(str(m.metric)));
+        const actual = match ? match.actualValue : '-';
+        const status = match ? match.status : '-';
+        agentRows.push(`| ${str(a.name)} | ${str(m.metric)} | ${str(m.target)} | ${actual} | ${status} |`);
+      } else {
+        agentRows.push(`| ${str(a.name)} | ${str(m.metric)} | ${str(m.target)} |`);
+      }
     }
   }
 
   if (agentRows.length > 0) {
     hasContent = true;
-    lines.push(
-      '## Agent-Level Metrics', '',
-      '| Agent | Metric | Target |',
-      '|-------|--------|--------|',
-      ...agentRows, '',
-    );
+    if (hasActuals) {
+      lines.push(
+        '## Agent-Level Metrics', '',
+        '| Agent | Metric | Target | Actual | Status |',
+        '|-------|--------|--------|--------|--------|',
+        ...agentRows, '',
+      );
+    } else {
+      lines.push(
+        '## Agent-Level Metrics', '',
+        '| Agent | Metric | Target |',
+        '|-------|--------|--------|',
+        ...agentRows, '',
+      );
+    }
   }
 
   if (!hasContent) {
@@ -1480,7 +1888,159 @@ function buildEvaluationCriteria(input: SkillRenderInput): string {
   return lines.join('\n');
 }
 
+function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
+  const lines: string[] = [];
+  const sd = rec(input.implementationState!.stateData);
+  const stateAgents = arr(sd.agents);
+  const team = arr(rec(input.blueprintData).enhancedDigitalTeam);
+  const totalAgents = stateAgents.length || team.length;
+
+  let implementedCount = 0;
+  const inProgressNames: string[] = [];
+  for (const sa of stateAgents) {
+    const a = rec(sa);
+    const status = str(a.status);
+    if (status === 'implemented' || status === 'modified') implementedCount++;
+    if (status === 'in_progress') inProgressNames.push(str(a.name));
+  }
+
+  lines.push('# Getting Started');
+  lines.push('');
+  lines.push('YOU ARE CONTINUING AN IMPLEMENTATION. Implementation state has been synced');
+  lines.push('back to Agent Blueprint. Read `CURRENT-STATE.md` for where things stand');
+  lines.push('and `RECOMMENDATIONS.md` for what to do next.');
+  lines.push('');
+  lines.push('## Current status');
+  lines.push('');
+  lines.push(`${implementedCount} of ${totalAgents} agents implemented. Overall: ${str(sd.overall_status) || 'in_progress'}.`);
+  if (inProgressNames.length > 0) {
+    lines.push(`In progress: ${inProgressNames.join(', ')}.`);
+  }
+
+  if (hasProgressData(input)) {
+    const s = input.progress!.summary;
+    lines.push(`${s.onTrack} metric${s.onTrack !== 1 ? 's' : ''} on track, ${s.minorDeviation} minor deviation${s.minorDeviation !== 1 ? 's' : ''}, ${s.majorDeviation} major deviation${s.majorDeviation !== 1 ? 's' : ''}.`);
+  }
+  lines.push('');
+
+  // Ground rules (same as first visit)
+  lines.push('## Ground rules (MUST FOLLOW)');
+  lines.push('');
+  lines.push('- **Do not summarize the blueprint.** The user already knows what they bought.');
+  lines.push('  Do not list agents, describe the architecture, or restate the problem.');
+  lines.push('  Go straight to building.');
+  lines.push('- **Do not ask questions you can answer yourself.** Check your configured MCP');
+  lines.push('  servers, read the spec files, query the platform. Only ask the user when');
+  lines.push('  you genuinely cannot proceed without their input.');
+  lines.push('- **Act, then report.** Do not narrate what you are about to do. Do it, then');
+  lines.push('  tell the user what you did and what comes next. One short status per milestone.');
+  lines.push('- **Be decisive.** When you know the right approach, take it. Do not present');
+  lines.push('  options and ask the user to choose. Recommend and act.');
+  lines.push('- **Recover fast.** When something fails, try the obvious fix immediately.');
+  lines.push('  One fix, one alternative, then ask. Do not spiral.');
+  lines.push('- **Verify before presenting.** Never give the user a URL, path, or command');
+  lines.push('  you have not verified against the actual platform instance.');
+  lines.push('');
+
+  // Step 1
+  lines.push('## Step 1: Review current state');
+  lines.push('');
+  lines.push('Read `CURRENT-STATE.md` for the full implementation picture:');
+  lines.push('- Which agents are implemented, in progress, or not started');
+  lines.push('- Platform and architecture decisions made so far');
+  lines.push('- Performance against targets (if metrics have been reported)');
+  lines.push('');
+
+  // Step 2
+  lines.push('## Step 2: Follow recommendations');
+  lines.push('');
+  lines.push('Read `RECOMMENDATIONS.md` for prioritized next actions:');
+  lines.push('- Agents to implement next (ordered by roadmap priority)');
+  lines.push('- Metrics that need attention (deviations from targets)');
+  lines.push('- Deviations from spec that warrant review');
+  lines.push('');
+
+  // Step 3
+  lines.push('## Step 3: Continue implementation');
+  lines.push('');
+  if (inProgressNames.length > 0) {
+    lines.push(`Agent${inProgressNames.length > 1 ? 's' : ''} in progress: ${inProgressNames.join(', ')}. Pick up where you left off.`);
+    lines.push('');
+  }
+
+  if (input.vendorSkill) {
+    lines.push(`The \`.claude/skills/${input.vendorSkill.skillName}/\` skill contains platform-specific`);
+    lines.push('deployment guidance. Follow it for all platform-specific work.');
+    lines.push('');
+  }
+
+  lines.push('For each agent:');
+  lines.push('1. Review the agent spec in `references/agent-specifications.md`');
+  lines.push('2. Build the agent with its tools and instructions');
+  lines.push('3. Test and iterate until behavior matches the spec');
+  lines.push('4. Update `implementation-state.yaml` with status and platform artifact');
+  lines.push('5. Move to the next agent');
+  lines.push('');
+
+  // Step 4
+  lines.push('## Step 4: Validate and measure');
+  lines.push('');
+  lines.push('Use `references/evaluation-criteria.md` to verify success metrics.');
+  lines.push('Report actuals:');
+  lines.push('');
+  lines.push('  agentblueprint report-metric <blueprint-id> --metric "Metric Name" --value "actual"');
+  lines.push('');
+
+  // Step 5
+  lines.push('## Step 5: Sync your progress');
+  lines.push('');
+  lines.push('After implementing each agent or making significant changes:');
+  lines.push('');
+  lines.push('  agentblueprint sync <blueprint-id>');
+  lines.push('');
+  lines.push('This keeps the loop closed. Next time you download this blueprint,');
+  lines.push('you\'ll see updated recommendations based on your latest progress.');
+  lines.push('');
+
+  // Platform patterns (same as first visit)
+  lines.push('## Platform patterns');
+  lines.push('');
+  lines.push('These patterns help you map the vendor-agnostic spec to your target platform:');
+  lines.push('');
+  lines.push('- **Agent orchestration**: Look for your platform\'s agent/bot framework,');
+  lines.push('  workflow engine, or flow builder. The spec describes a');
+
+  const pattern = getPatternName(input);
+  if (pattern) {
+    lines.push(`  ${pattern} pattern -- find your platform's equivalent orchestration mechanism.`);
+  } else {
+    lines.push('  multi-agent pattern -- find your platform\'s equivalent orchestration mechanism.');
+  }
+
+  lines.push('- **Data integration**: Check what APIs or connectors exist for the data sources');
+  lines.push('  listed in `references/architecture-decisions.md`. Prefer native connectors');
+  lines.push('  over custom API calls.');
+  lines.push('- **Guardrails**: Map the escalation rules from `references/guardrails-and-governance.md`');
+  lines.push('  to platform-native controls (approval chains, role-based access, audit logs).');
+  lines.push('- **Scoping**: Some platforms have namespace or scope constraints on API-created');
+  lines.push('  records. If records don\'t appear in the expected scope, check your platform\'s');
+  lines.push('  documentation on scoped app deployment.');
+  lines.push('');
+
+  // Footer
+  lines.push('---');
+  lines.push('');
+  lines.push('Generated by [Agent Blueprint](https://app.agentblueprint.ai)');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
 function buildGettingStarted(input: SkillRenderInput): string {
+  if (hasImplementationData(input)) {
+    return buildGettingStartedReturnVisit(input);
+  }
+
   const lines: string[] = [];
 
   lines.push('# Getting Started');
@@ -1954,6 +2514,14 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
 
   // Implementation state template
   files.set('implementation-state.yaml', buildImplementationState(input));
+
+  // Reality layer (return visits -- Living Blueprint Phase 3A)
+  if (hasImplementationData(input)) {
+    files.set('CURRENT-STATE.md', buildCurrentState(input));
+  }
+  if (hasImplementationData(input) || hasProgressData(input)) {
+    files.set('RECOMMENDATIONS.md', buildRecommendations(input));
+  }
 
   return files;
 }

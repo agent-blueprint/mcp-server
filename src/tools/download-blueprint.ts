@@ -18,6 +18,12 @@ export async function handleDownloadBlueprint(
       client.getBusinessProfile(orgId).catch(() => null),
     ]);
 
+    // Fetch reality data for return visits (non-blocking)
+    const [implementationState, progress] = await Promise.all([
+      client.getImplementationState(args.blueprintId, orgId).catch(() => null),
+      client.getProgress(args.blueprintId, orgId).catch(() => null),
+    ]);
+
     const bpData = blueprint.data as Record<string, unknown>;
     const title = (bpData.title as string)
       || (bpData.blueprintTitle as string)
@@ -56,6 +62,8 @@ export async function handleDownloadBlueprint(
       generalGuide: generalGuideData?.content,
       vendorGuide: vendorGuideInput,
       vendorSkill: vendorSkillInput,
+      implementationState,
+      progress,
     };
 
     const files = renderSkillDirectory(input);
@@ -73,9 +81,14 @@ export async function handleDownloadBlueprint(
       installHint: `Write these files to .agent-blueprint/${slug}/ and any .claude/skills/ files to the project root.`,
     };
 
-    const nextAction = vendorSkillInput
-      ? `NEXT: Read GETTING-STARTED.md, then follow the expert skill at .claude/skills/${vendorSkillInput.skillName}/SKILL.md. You are the implementer — start working immediately. Do not ask the user to review files.`
-      : `NEXT: Read GETTING-STARTED.md and start implementation. You are the implementer — do not ask the user to review files.`;
+    let nextAction: string;
+    if (implementationState) {
+      nextAction = 'NEXT: Read CURRENT-STATE.md for where things stand, then RECOMMENDATIONS.md for what to do next. You are continuing an implementation.';
+    } else if (vendorSkillInput) {
+      nextAction = `NEXT: Read GETTING-STARTED.md, then follow the expert skill at .claude/skills/${vendorSkillInput.skillName}/SKILL.md. You are the implementer — start working immediately. Do not ask the user to review files.`;
+    } else {
+      nextAction = 'NEXT: Read GETTING-STARTED.md and start implementation. You are the implementer — do not ask the user to review files.';
+    }
 
     return {
       content: [
