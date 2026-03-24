@@ -2136,10 +2136,11 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('');
 
   // Step 3
-  lines.push('## Step 3: Start with the pilot');
+  lines.push('## Step 3: Build and validate the pilot');
   lines.push('');
   lines.push('Check `references/implementation-roadmap.md` for Phase 1 scope.');
-  lines.push('Build the lead agent first. Validate it works before expanding to the full team.');
+  lines.push('Build the lead agent first. **Do not expand to remaining agents until the');
+  lines.push('pilot is fully working with real data.** This is a gate, not a suggestion.');
   lines.push('');
   if (input.vendorSkill) {
     lines.push(`The \`.claude/skills/${input.vendorSkill.skillName}/\` skill contains the deployment`);
@@ -2149,17 +2150,50 @@ function buildGettingStarted(input: SkillRenderInput): string {
     lines.push('follow its deployment sequence instead of the general pattern below.');
   }
   lines.push('');
-  lines.push('General pattern (fallback when no deployment guide is present):');
-  lines.push('1. Create the data model (tables, fields, relationships) for the pilot scope');
-  lines.push('2. Build the first worker agent with its tools and instructions');
-  lines.push('3. Add seed or test data to exercise the agent');
-  lines.push('4. Test and iterate until behavior matches the spec');
-  lines.push('5. Add remaining agents one at a time, testing after each');
-  lines.push('6. Wire the orchestrator last, once all workers are validated');
+  lines.push('### Pilot progression');
+  lines.push('');
+  lines.push('**Phase A: Scaffold and validate orchestration.**');
+  lines.push('1. Create the application container (scoped app, project, etc.) for the pilot.');
+  lines.push('   State your intent: "I\'ll create a new application called \'[Name]\' to contain all agents."');
+  lines.push('2. Build the first worker agent with its tools and instructions.');
+  lines.push('3. Use simulation scripts to validate the LLM orchestration (tool chaining,');
+  lines.push('   parameter passing, sequencing). This proves the agent can chain tools correctly.');
+  lines.push('4. **Test before proceeding.** Invoke the agent programmatically, read the execution');
+  lines.push('   trace, verify each tool produced output. Do not rely on UI testing alone. Re-test');
+  lines.push('   until the full tool chain completes end-to-end.');
+  lines.push('');
+  lines.push('**Phase B: Make the pilot real.** Simulation scripts are not a finished pilot.');
+  lines.push('5. Replace simulation scripts with real implementations that connect to actual');
+  lines.push('   data sources, APIs, and platform tables.');
+  lines.push('6. Test again with real data. The pilot should deliver measurable business value,');
+  lines.push('   not just prove tool chaining works.');
+  lines.push('');
+  lines.push('**Phase C: Expand.** Only after the pilot works end-to-end with real data:');
+  lines.push('7. Add remaining agents one at a time, testing after each.');
+  lines.push('8. Wire the orchestrator last, once all workers are validated.');
+  lines.push('');
+  lines.push('### Your role through implementation');
+  lines.push('');
+  lines.push('Your job does not end when simulation scripts are deployed. Stay with the user');
+  lines.push('through the full implementation. Operate in three modes:');
+  lines.push('');
+  lines.push('1. **Do it directly.** When you have system access (MCP, API, credentials), do the');
+  lines.push('   work yourself. Create records, write scripts, configure integrations, test.');
+  lines.push('2. **Offer to do it with access.** When you know how but lack credentials or');
+  lines.push('   permissions, tell the user what you need.');
+  lines.push('3. **Walk the user through it.** When only the user can act (UI-only config,');
+  lines.push('   credential vaults, third-party admin consoles), give exact step-by-step');
+  lines.push('   instructions, then verify programmatically that it worked.');
   lines.push('');
 
   // Step 4
   lines.push('## Step 4: Validate');
+  lines.push('');
+  lines.push('**Test programmatically, not just in the UI.** Invoke agents via API or');
+  lines.push('server-side scripts. Read execution traces to verify each tool produced');
+  lines.push('output. Do not rely on sleep/wait loops -- poll the execution state tables.');
+  lines.push('If execution trace tables are access-restricted, use server-side scripts');
+  lines.push('(e.g., background scripts with GlideRecord) to read them.');
   lines.push('');
   lines.push('Use `references/evaluation-criteria.md` to verify success metrics');
   lines.push('are measurable in the target platform. Run `scripts/validate-spec.sh`');

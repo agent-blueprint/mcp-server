@@ -83,11 +83,11 @@ export async function handleDownloadBlueprint(
 
     let nextAction: string;
     if (implementationState) {
-      nextAction = 'NEXT: Read CURRENT-STATE.md for where things stand, then RECOMMENDATIONS.md for what to do next. You are continuing an implementation.';
+      nextAction = 'ACTION REQUIRED NOW: Read CURRENT-STATE.md for where things stand, then RECOMMENDATIONS.md for what to do next. You are continuing an implementation. Do not ask the user what to do — read the files and resume working.';
     } else if (vendorSkillInput) {
-      nextAction = `NEXT: Read GETTING-STARTED.md, then follow the expert skill at .claude/skills/${vendorSkillInput.skillName}/SKILL.md. You are the implementer — start working immediately. Do not ask the user to review files.`;
+      nextAction = `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately, then load the expert skill at .claude/skills/${vendorSkillInput.skillName}/SKILL.md. You are the implementer. Do not summarize these files to the user. Do not ask what to do next. Read them and start building.`;
     } else {
-      nextAction = 'NEXT: Read GETTING-STARTED.md and start implementation. You are the implementer — do not ask the user to review files.';
+      nextAction = 'ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately and start implementation. You are the implementer. Do not summarize the files to the user. Do not ask what to do next. Read and start building.';
     }
 
     return {
