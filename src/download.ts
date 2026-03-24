@@ -4,8 +4,7 @@ import { join, dirname } from 'node:path';
 import { AgentBlueprintClient } from './client.js';
 import type { Config } from './config.js';
 import { getNextActionDirective } from './directives.js';
-import { renderSkillDirectory, slugify } from './renderers.js';
-import type { SkillRenderInput } from './renderers.js';
+import { fetchAndRenderBlueprint } from './fetch-blueprint.js';
 
 export interface DownloadArgs {
   blueprintId?: string;
@@ -122,72 +121,16 @@ async function downloadBlueprint(
   blueprintId = await resolveId(client, blueprintId, customerOrgId);
   console.error(`Fetching blueprint ${blueprintId}...`);
 
-  // Fetch all data in parallel
-  const [blueprint, businessCase, implementationPlan, useCase, businessProfile] = await Promise.all([
-    client.getBlueprint(blueprintId, customerOrgId),
-    client.getBusinessCase(blueprintId, customerOrgId).catch(() => null),
-    client.getImplementationPlan(blueprintId, customerOrgId).catch(() => null),
-    client.getUseCase(blueprintId, customerOrgId).catch(() => null),
-    client.getBusinessProfile(customerOrgId).catch(() => null),
-  ]);
+  const result = await fetchAndRenderBlueprint(client, blueprintId, {
+    customerOrgId,
+    platform,
+  });
 
-  // Fetch reality data for return visits (non-blocking)
-  const [implementationState, progress] = await Promise.all([
-    client.getImplementationState(blueprintId, customerOrgId).catch(() => null),
-    client.getProgress(blueprintId, customerOrgId).catch(() => null),
-  ]);
-
-  const title = (blueprint.data as Record<string, unknown>).title as string
-    || blueprint.data.blueprintTitle as string
-    || `Blueprint ${blueprintId.slice(0, 8)}`;
-
-  // Fetch vendor deployment guides and expert skills
-  const generalGuideData = await client.getVendorGuide('general');
-  let vendorGuideInput: { platform: string; content: string } | undefined;
-  let vendorSkillInput: { platform: string; skillName: string; content: string } | undefined;
-  if (platform && platform !== 'skip') {
-    // Try vendor skill first (replaces vendor guide when present)
-    const vendorSkillData = await client.getVendorSkill(platform);
-    if (vendorSkillData) {
-      vendorSkillInput = {
-        platform: vendorSkillData.platform,
-        skillName: vendorSkillData.skillName,
-        content: vendorSkillData.content,
-      };
-    } else {
-      // Fall back to vendor deployment guide
-      const vendorGuideData = await client.getVendorGuide(platform);
-      if (vendorGuideData) {
-        vendorGuideInput = { platform: vendorGuideData.platform, content: vendorGuideData.content };
-      } else {
-        console.error(`Warning: No vendor skill or guide found for platform "${platform}". Continuing without it.`);
-      }
-    }
-  }
-
-  const input: SkillRenderInput = {
-    blueprintTitle: title,
-    blueprintId,
-    blueprintData: blueprint.data,
-    businessCaseData: businessCase?.data,
-    implementationPlanData: implementationPlan?.data,
-    useCaseData: useCase as Record<string, unknown> | undefined,
-    businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
-    generalGuide: generalGuideData?.content,
-    vendorGuide: vendorGuideInput,
-    vendorSkill: vendorSkillInput,
-    implementationState,
-    progress,
-  };
-
-  // Render
-  const files = renderSkillDirectory(input);
-  const slug = slugify(title) || 'blueprint';
-  const outDir = join(baseDir, slug);
+  const outDir = join(baseDir, result.slug);
 
   // Write files
   let totalSize = 0;
-  for (const [relativePath, content] of files) {
+  for (const [relativePath, content] of result.files) {
     // Vendor skill files go to project root (not inside outDir)
     const isSkillFile = relativePath.startsWith('.claude/skills/');
     const fullPath = isSkillFile ? join(process.cwd(), relativePath) : join(outDir, relativePath);
@@ -199,29 +142,29 @@ async function downloadBlueprint(
 
   // Summary
   console.error('');
-  console.error(`Downloaded ${files.size} files to ${outDir}/`);
+  console.error(`Downloaded ${result.files.size} files to ${outDir}/`);
   console.error(`Total size: ${(totalSize / 1024).toFixed(1)} KB`);
   console.error('');
   console.error('Files:');
-  for (const [path] of files) {
+  for (const [path] of result.files) {
     if (path.startsWith('.claude/skills/')) {
       console.error(`  ${path} (project root)`);
     } else {
       console.error(`  ${path}`);
     }
   }
-  if (vendorSkillInput) {
+  if (result.vendorSkillName) {
     console.error('');
-    console.error(`Expert skill installed: .claude/skills/${vendorSkillInput.skillName}/SKILL.md`);
+    console.error(`Expert skill installed: .claude/skills/${result.vendorSkillName}/SKILL.md`);
     console.error('Claude Code will auto-discover this skill in all future sessions.');
   }
-  if (implementationState || (progress && progress.actuals.length > 0)) {
+  if (result.hasImplementationState) {
     console.error('');
     console.error('Return visit detected: includes implementation state and/or metrics.');
   }
   console.error('');
   console.error(getNextActionDirective({
-    hasImplementationState: !!implementationState,
-    vendorSkillName: vendorSkillInput?.skillName,
+    hasImplementationState: result.hasImplementationState,
+    vendorSkillName: result.vendorSkillName,
   }));
 }
