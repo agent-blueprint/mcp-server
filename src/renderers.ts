@@ -2153,8 +2153,8 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('### Pilot progression');
   lines.push('');
   lines.push('**Phase A: Scaffold and validate orchestration.**');
-  lines.push('1. Create the application container (scoped app, project, etc.) for the pilot.');
-  lines.push('   State your intent: "I\'ll create a new application called \'[Name]\' to contain all agents."');
+  lines.push('1. Create an application container for the pilot (project, workspace, or whatever');
+  lines.push('   your platform uses to group related agents). State your intent to the user.');
   lines.push('2. Build the first worker agent with its tools and instructions.');
   lines.push('3. Use simulation scripts to validate the LLM orchestration (tool chaining,');
   lines.push('   parameter passing, sequencing). This proves the agent can chain tools correctly.');
@@ -2193,7 +2193,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('server-side scripts. Read execution traces to verify each tool produced');
   lines.push('output. Do not rely on sleep/wait loops -- poll the execution state tables.');
   lines.push('If execution trace tables are access-restricted, use server-side scripts');
-  lines.push('(e.g., background scripts with GlideRecord) to read them.');
+  lines.push('to read them.');
   lines.push('');
   lines.push('Use `references/evaluation-criteria.md` to verify success metrics');
   lines.push('are measurable in the target platform. Run `scripts/validate-spec.sh`');
