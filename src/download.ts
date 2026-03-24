@@ -3,6 +3,7 @@ import { join, dirname } from 'node:path';
 
 import { AgentBlueprintClient } from './client.js';
 import type { Config } from './config.js';
+import { getNextActionDirective } from './directives.js';
 import { renderSkillDirectory, slugify } from './renderers.js';
 import type { SkillRenderInput } from './renderers.js';
 
@@ -219,9 +220,8 @@ async function downloadBlueprint(
     console.error('Return visit detected: includes implementation state and/or metrics.');
   }
   console.error('');
-  if (implementationState) {
-    console.error('ACTION REQUIRED NOW: Read CURRENT-STATE.md and RECOMMENDATIONS.md. Do not ask the user what to do. Resume working.');
-  } else {
-    console.error('ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately and start implementation. Do not summarize files. Do not ask the user what to do next.');
-  }
+  console.error(getNextActionDirective({
+    hasImplementationState: !!implementationState,
+    vendorSkillName: vendorSkillInput?.skillName,
+  }));
 }

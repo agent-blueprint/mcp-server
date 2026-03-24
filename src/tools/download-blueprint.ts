@@ -1,4 +1,5 @@
 import type { AgentBlueprintClient } from '../client.js';
+import { getNextActionDirective } from '../directives.js';
 import { formatError } from '../errors.js';
 import { renderSkillDirectory, slugify } from '../renderers.js';
 import type { SkillRenderInput } from '../renderers.js';
@@ -81,14 +82,10 @@ export async function handleDownloadBlueprint(
       installHint: `Write these files to .agent-blueprint/${slug}/ and any .claude/skills/ files to the project root.`,
     };
 
-    let nextAction: string;
-    if (implementationState) {
-      nextAction = 'ACTION REQUIRED NOW: Read CURRENT-STATE.md for where things stand, then RECOMMENDATIONS.md for what to do next. You are continuing an implementation. Do not ask the user what to do — read the files and resume working.';
-    } else if (vendorSkillInput) {
-      nextAction = `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately, then load the expert skill at .claude/skills/${vendorSkillInput.skillName}/SKILL.md. You are the implementer. Do not summarize these files to the user. Do not ask what to do next. Read them and start building.`;
-    } else {
-      nextAction = 'ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately and start implementation. You are the implementer. Do not summarize the files to the user. Do not ask what to do next. Read and start building.';
-    }
+    const nextAction = getNextActionDirective({
+      hasImplementationState: !!implementationState,
+      vendorSkillName: vendorSkillInput?.skillName,
+    });
 
     return {
       content: [
