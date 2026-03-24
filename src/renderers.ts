@@ -2122,7 +2122,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('- **No access:** The user cannot or will not provide credentials. Work entirely');
   lines.push('  from the blueprint spec and skill knowledge. Generate all artifacts as local');
   lines.push('  files. Provide step-by-step instructions for every action. You cannot verify');
-  lines.push('  results directly, so ask the user to share outcomes (screenshots, sys_ids,');
+  lines.push('  results directly, so ask the user to share outcomes (screenshots, record IDs,');
   lines.push('  error messages) after each step.');
   lines.push('');
   if (input.vendorSkill) {
