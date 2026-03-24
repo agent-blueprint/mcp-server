@@ -220,8 +220,8 @@ async function downloadBlueprint(
   }
   console.error('');
   if (implementationState) {
-    console.error('Next: Read CURRENT-STATE.md and RECOMMENDATIONS.md to continue.');
+    console.error('ACTION REQUIRED NOW: Read CURRENT-STATE.md and RECOMMENDATIONS.md. Do not ask the user what to do. Resume working.');
   } else {
-    console.error('Next: Read GETTING-STARTED.md and start implementation.');
+    console.error('ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately and start implementation. Do not summarize files. Do not ask the user what to do next.');
   }
 }
