@@ -2106,15 +2106,31 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('Ask the user where they want to deploy this. Three scenarios:');
   lines.push('');
   lines.push('**A. User has a platform and instance ready** (e.g., ServiceNow, Salesforce):');
-  lines.push('1. Get the instance URL and credentials.');
-  lines.push('2. Confirm this is a development or sandbox instance, not production.');
-  lines.push('3. Verify you are connected to the correct instance before making any changes.');
+  lines.push('');
+  lines.push('Ask for the instance URL and credentials. Adapt your approach based on what the');
+  lines.push('user provides. Do not present access tiers as a menu. Respond naturally:');
+  lines.push('');
+  lines.push('- **Full access (read + write credentials):** Confirm this is a development or');
+  lines.push('  sandbox instance, not production. Verify you are connected to the correct');
+  lines.push('  instance before making any changes. You will create records, write scripts,');
+  lines.push('  and configure integrations directly.');
+  lines.push('- **Read-only access:** The user provides credentials but tells you access is');
+  lines.push('  read-only, or you discover you cannot write. Connect to the instance to');
+  lines.push('  discover schemas, read existing configurations, and understand the environment.');
+  lines.push('  Generate all records and scripts as local files. Walk the user through creating');
+  lines.push('  them. After the user acts, verify the result by reading back from the instance.');
+  lines.push('- **No access:** The user cannot or will not provide credentials. Work entirely');
+  lines.push('  from the blueprint spec and skill knowledge. Generate all artifacts as local');
+  lines.push('  files. Provide step-by-step instructions for every action. You cannot verify');
+  lines.push('  results directly, so ask the user to share outcomes (screenshots, sys_ids,');
+  lines.push('  error messages) after each step.');
   lines.push('');
   if (input.vendorSkill) {
     const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
     lines.push(`A ${platformLabel} expert skill has been installed at \`.claude/skills/${input.vendorSkill.skillName}/\`.`);
     lines.push('It contains the connection verification steps, deployment sequence, platform');
     lines.push('patterns, and debugging guidance. Follow it for all platform-specific work.');
+    lines.push('The deployment sequence adapts to the access level the user provides.');
   } else {
     lines.push('If `references/deployment-guide-*.md` files are present, read those for');
     lines.push('platform-specific tooling, deployment sequence, and gotchas.');
@@ -2175,15 +2191,24 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('### Your role through implementation');
   lines.push('');
   lines.push('Your job does not end when simulation scripts are deployed. Stay with the user');
-  lines.push('through the full implementation. Operate in three modes:');
+  lines.push('through the full implementation. How you operate depends on the access level');
+  lines.push('established in Step 2:');
   lines.push('');
-  lines.push('1. **Do it directly.** When you have system access (MCP, API, credentials), do the');
-  lines.push('   work yourself. Create records, write scripts, configure integrations, test.');
-  lines.push('2. **Offer to do it with access.** When you know how but lack credentials or');
-  lines.push('   permissions, tell the user what you need.');
-  lines.push('3. **Walk the user through it.** When only the user can act (UI-only config,');
-  lines.push('   credential vaults, third-party admin consoles), give exact step-by-step');
-  lines.push('   instructions, then verify programmatically that it worked.');
+  lines.push('**With full access:** Do the work directly. Create records, write scripts,');
+  lines.push('configure integrations, test. Act first, report after.');
+  lines.push('');
+  lines.push('**With read-only access:** Use the instance connection to discover schemas,');
+  lines.push('read existing config, and verify results. Generate all records and scripts as');
+  lines.push('local files. Walk the user through creating them on the platform. After each');
+  lines.push('step, read back from the instance to confirm it was done correctly.');
+  lines.push('');
+  lines.push('**With no access:** Generate everything as local files with step-by-step');
+  lines.push('instructions. Ask the user to share results after each action so you can');
+  lines.push('guide corrections. Be explicit about what you cannot verify.');
+  lines.push('');
+  lines.push('Within any access level, shift fluidly as needed. Even with full access, some');
+  lines.push('tasks require the user to act (UI-only config, credential vaults, approval');
+  lines.push('workflows). Give exact instructions and verify programmatically when possible.');
   lines.push('');
 
   // Step 4
