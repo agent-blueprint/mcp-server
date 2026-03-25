@@ -153,9 +153,14 @@ async function downloadBlueprint(
       console.error(`  ${path}`);
     }
   }
+  if (result.hasBaseSkill) {
+    console.error('');
+    console.error('Base skill installed: .claude/skills/agent-blueprint/');
+    console.error('Claude Code will auto-discover this skill in all future sessions.');
+  }
   if (result.vendorSkillName) {
     console.error('');
-    console.error(`Expert skill installed: .claude/skills/${result.vendorSkillName}/SKILL.md`);
+    console.error(`Expert skill installed: .claude/skills/${result.vendorSkillName}/`);
     console.error('Claude Code will auto-discover this skill in all future sessions.');
   }
   if (result.hasImplementationState) {
@@ -165,6 +170,7 @@ async function downloadBlueprint(
   console.error('');
   console.error(getNextActionDirective({
     hasImplementationState: result.hasImplementationState,
+    hasBaseSkill: result.hasBaseSkill,
     vendorSkillName: result.vendorSkillName,
   }));
 }

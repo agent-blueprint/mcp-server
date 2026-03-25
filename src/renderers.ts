@@ -7,6 +7,11 @@
 
 import type { ImplementationStateResponse, ProgressResponse } from './client.js';
 
+export interface SkillFile {
+  path: string;
+  content: string;
+}
+
 export interface SkillRenderInput {
   blueprintTitle: string;
   blueprintId: string;
@@ -18,7 +23,8 @@ export interface SkillRenderInput {
   businessProfileData?: Record<string, unknown>;
   generalGuide?: string;
   vendorGuide?: { platform: string; content: string };
-  vendorSkill?: { platform: string; skillName: string; content: string };
+  vendorSkill?: { platform: string; skillName: string; content: string; files?: SkillFile[] };
+  baseSkill?: { files: SkillFile[] };
   implementationState?: ImplementationStateResponse | null;
   progress?: ProgressResponse | null;
 }
@@ -194,6 +200,14 @@ function buildSkillBody(input: SkillRenderInput): string {
   lines.push(`- **Platform:** ${platform}`);
   lines.push(`- **Pattern:** ${pattern}`);
   lines.push(`- **Agents:** ${team.length}`, '');
+
+  if (input.baseSkill) {
+    lines.push(
+      '> A base implementation skill has been installed at `.claude/skills/agent-blueprint/`.',
+      '> It contains deployment patterns and reference material for all platforms.',
+      '',
+    );
+  }
 
   if (input.vendorSkill) {
     const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
@@ -1968,6 +1982,11 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
     lines.push('');
   }
 
+  if (input.baseSkill) {
+    lines.push('The `.claude/skills/agent-blueprint/` skill contains deployment patterns and');
+    lines.push('reference material applicable to all platforms. Read it for general guidance.');
+    lines.push('');
+  }
   if (input.vendorSkill) {
     lines.push(`The \`.claude/skills/${input.vendorSkill.skillName}/\` skill contains platform-specific`);
     lines.push('deployment guidance. Follow it for all platform-specific work.');
@@ -2125,13 +2144,19 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('  results directly, so ask the user to share outcomes (screenshots, record IDs,');
   lines.push('  error messages) after each step.');
   lines.push('');
+  if (input.baseSkill) {
+    lines.push('A base implementation skill has been installed at `.claude/skills/agent-blueprint/`.');
+    lines.push('It contains deployment patterns and reference material applicable to all platforms.');
+    lines.push('Read it before starting any implementation work.');
+    lines.push('');
+  }
   if (input.vendorSkill) {
     const platformLabel = input.vendorSkill.platform.charAt(0).toUpperCase() + input.vendorSkill.platform.slice(1);
     lines.push(`A ${platformLabel} expert skill has been installed at \`.claude/skills/${input.vendorSkill.skillName}/\`.`);
     lines.push('It contains the connection verification steps, deployment sequence, platform');
     lines.push('patterns, and debugging guidance. Follow it for all platform-specific work.');
     lines.push('The deployment sequence adapts to the access level the user provides.');
-  } else {
+  } else if (!input.baseSkill) {
     lines.push('If `references/deployment-guide-*.md` files are present, read those for');
     lines.push('platform-specific tooling, deployment sequence, and gotchas.');
   }
@@ -2748,9 +2773,22 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
     files.set(`references/deployment-guide-${input.vendorGuide.platform}.md`, input.vendorGuide.content);
   }
 
-  // Vendor expert skill
+  // Base skill (always, when present)
+  if (input.baseSkill) {
+    for (const file of input.baseSkill.files) {
+      files.set(`.claude/skills/agent-blueprint/${file.path}`, file.content);
+    }
+  }
+
+  // Vendor expert skill (multi-file when available, single SKILL.md fallback)
   if (input.vendorSkill) {
-    files.set(`.claude/skills/${input.vendorSkill.skillName}/SKILL.md`, input.vendorSkill.content);
+    if (input.vendorSkill.files && input.vendorSkill.files.length > 0) {
+      for (const file of input.vendorSkill.files) {
+        files.set(`.claude/skills/${input.vendorSkill.skillName}/${file.path}`, file.content);
+      }
+    } else {
+      files.set(`.claude/skills/${input.vendorSkill.skillName}/SKILL.md`, input.vendorSkill.content);
+    }
   }
 
   // Scripts

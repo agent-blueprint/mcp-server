@@ -16,6 +16,7 @@ export interface BlueprintDownloadResult {
   slug: string;
   title: string;
   hasImplementationState: boolean;
+  hasBaseSkill: boolean;
   vendorSkillName?: string;
 }
 
@@ -26,13 +27,14 @@ export async function fetchAndRenderBlueprint(
 ): Promise<BlueprintDownloadResult> {
   const orgId = opts.customerOrgId;
 
-  // Fetch all data in parallel
-  const [blueprint, businessCase, implementationPlan, useCase, businessProfile] = await Promise.all([
+  // Fetch all data in parallel (base skill included -- graceful degradation if unavailable)
+  const [blueprint, businessCase, implementationPlan, useCase, businessProfile, baseSkill] = await Promise.all([
     client.getBlueprint(blueprintId, orgId),
     client.getBusinessCase(blueprintId, orgId).catch(() => null),
     client.getImplementationPlan(blueprintId, orgId).catch(() => null),
     client.getUseCase(blueprintId, orgId).catch(() => null),
     client.getBusinessProfile(orgId).catch(() => null),
+    client.getBaseSkill().catch(() => null),
   ]);
 
   // Fetch reality data for return visits
@@ -50,7 +52,7 @@ export async function fetchAndRenderBlueprint(
   // Resolve vendor deployment guides and expert skills
   const generalGuideData = await client.getVendorGuide('general');
   let vendorGuideInput: { platform: string; content: string } | undefined;
-  let vendorSkillInput: { platform: string; skillName: string; content: string } | undefined;
+  let vendorSkillInput: { platform: string; skillName: string; content: string; files?: Array<{path: string; content: string}> } | undefined;
   if (opts.platform && opts.platform !== 'skip') {
     const vendorSkillData = await client.getVendorSkill(opts.platform);
     if (vendorSkillData) {
@@ -58,6 +60,7 @@ export async function fetchAndRenderBlueprint(
         platform: vendorSkillData.platform,
         skillName: vendorSkillData.skillName,
         content: vendorSkillData.content,
+        files: vendorSkillData.files,
       };
     } else {
       const vendorGuideData = await client.getVendorGuide(opts.platform);
@@ -78,6 +81,7 @@ export async function fetchAndRenderBlueprint(
     generalGuide: generalGuideData?.content,
     vendorGuide: vendorGuideInput,
     vendorSkill: vendorSkillInput,
+    baseSkill: baseSkill ?? undefined,
     implementationState,
     progress,
   };
@@ -91,6 +95,7 @@ export async function fetchAndRenderBlueprint(
     slug,
     title,
     hasImplementationState: !!implementationState,
+    hasBaseSkill: !!baseSkill,
     vendorSkillName: vendorSkillInput?.skillName,
   };
 }

@@ -19,14 +19,22 @@ export async function handleDownloadBlueprint(
       content,
     }));
 
+    const skillDirs: string[] = [];
+    if (result.hasBaseSkill) skillDirs.push('.claude/skills/agent-blueprint/');
+    if (result.vendorSkillName) skillDirs.push(`.claude/skills/${result.vendorSkillName}/`);
+    const skillNote = skillDirs.length > 0
+      ? ` Skill files go to: ${skillDirs.join(', ')}`
+      : '';
+
     const manifest = {
       directory: result.slug,
       files: fileList,
-      installHint: `Write these files to .agent-blueprint/${result.slug}/ and any .claude/skills/ files to the project root.`,
+      installHint: `Write these files to .agent-blueprint/${result.slug}/ and any .claude/skills/ files to the project root.${skillNote}`,
     };
 
     const nextAction = getNextActionDirective({
       hasImplementationState: result.hasImplementationState,
+      hasBaseSkill: result.hasBaseSkill,
       vendorSkillName: result.vendorSkillName,
     });
 

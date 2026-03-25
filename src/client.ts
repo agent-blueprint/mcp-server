@@ -190,7 +190,31 @@ export class AgentBlueprintClient {
 
       if (!response.ok) return null;
 
-      return (await response.json()) as VendorSkillResponse;
+      const data = (await response.json()) as VendorSkillResponse;
+
+      // Backward compat: if API returns old format (just content, no files),
+      // wrap content into a single-file array
+      if (!data.files || data.files.length === 0) {
+        data.files = [{ path: 'SKILL.md', content: data.content }];
+      }
+
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
+  async getBaseSkill(): Promise<BaseSkillResponse | null> {
+    try {
+      const url = new URL(`${this.config.apiUrl}/api/base-skill`);
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) return null;
+
+      return (await response.json()) as BaseSkillResponse;
     } catch {
       return null;
     }
@@ -252,11 +276,21 @@ export interface VendorGuideResponse {
   lastVerified: string;
 }
 
+export interface SkillFile {
+  path: string;
+  content: string;
+}
+
 export interface VendorSkillResponse {
   platform: string;
   skillName: string;
   content: string;
+  files?: SkillFile[];
   lastVerified: string;
+}
+
+export interface BaseSkillResponse {
+  files: SkillFile[];
 }
 
 export interface ImplementationStateSyncResponse {
