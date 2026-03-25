@@ -5,7 +5,7 @@
 // into a Map<string, string> of { relativePath → fileContent }
 // =============================================================================
 
-import type { ImplementationStateResponse, ProgressResponse } from './client.js';
+import type { ImplementationStateResponse, ProgressResponse } from './types.js';
 
 export interface SkillFile {
   path: string;

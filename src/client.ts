@@ -1,4 +1,5 @@
 import type { Config } from './config.js';
+import type { ImplementationStateResponse, ProgressResponse } from './types.js';
 import { ApiError } from './errors.js';
 
 export interface ApiResponse<T> {
@@ -320,16 +321,8 @@ export interface ImplementationStateSyncResponse {
   warnings: string[];
 }
 
-export interface ImplementationStateResponse {
-  id: string;
-  blueprintId: string;
-  organizationId: string;
-  stateData: Record<string, unknown>;
-  schemaVersion: string;
-  syncedAt: string;
-  syncedBy: string | null;
-  previousStateId: string | null;
-}
+// Re-exported from types.ts for backward compat
+export type { ImplementationStateResponse } from './types.js';
 
 export interface BusinessProfile {
   id: string;
@@ -384,38 +377,5 @@ export interface ReportMetricsResponse {
   };
 }
 
-export interface ProgressResponse {
-  blueprintId: string;
-  blueprintTitle: string;
-  targets: {
-    operational: Array<{ name: string; target: string; unit?: string; direction?: string }>;
-    financial: Array<{ name: string; value: string; unit?: string; direction?: string }>;
-  };
-  actuals: Array<{
-    id: string;
-    metricName: string;
-    metricType: string;
-    predictedValue: string;
-    actualValue: string;
-    baselineValue?: string;
-    deviationPercent?: number;
-    status: string;
-    recordedAt: string;
-    dataSource: string;
-    notes?: string;
-    recordingCount: number;
-  }>;
-  summary: {
-    totalTargets: number;
-    metricsRecorded: number;
-    onTrack: number;
-    minorDeviation: number;
-    majorDeviation: number;
-  };
-  implementationState?: {
-    overallStatus: string;
-    agentCount: number;
-    implementedCount: number;
-    lastSyncedAt: string;
-  } | null;
-}
+// Re-exported from types.ts for backward compat
+export type { ProgressResponse } from './types.js';

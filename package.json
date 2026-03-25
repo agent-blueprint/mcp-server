@@ -8,6 +8,11 @@
     "agent-blueprint-mcp": "dist/index.js"
   },
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./renderers": "./dist/renderers.js",
+    "./types": "./dist/types.js"
+  },
   "files": [
     "dist"
   ],
