@@ -2500,6 +2500,12 @@ function buildPlatformConnectivity(): string {
 // =============================================================================
 
 function buildImplementationState(input: SkillRenderInput): string {
+  // If synced state exists with real progress, pre-populate from it
+  if (hasImplementationData(input)) {
+    return buildPopulatedImplementationState(input);
+  }
+
+  // First download: generate blank template from blueprint
   const bp = input.blueprintData as Record<string, unknown>;
   const team = getTeam(bp);
   const pattern = getAgenticPattern(bp);
@@ -2589,6 +2595,174 @@ function buildImplementationState(input: SkillRenderInput): string {
       lines.push('  #   actual: ""');
       lines.push('  #   measured_at: ""');
       lines.push('  #   source: ""');
+    }
+  } else {
+    lines.push('metrics_observed: []');
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+// Helper to escape a string for YAML double-quoted values
+function yamlEscape(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+// Render a YAML string array inline, e.g. ["a", "b"] or []
+function yamlStringArray(items: string[], indent: string): string {
+  if (items.length === 0) return '[]';
+  // Multi-line for readability
+  return '\n' + items.map(item => `${indent}  - "${yamlEscape(item)}"`).join('\n');
+}
+
+function buildPopulatedImplementationState(input: SkillRenderInput): string {
+  const state = input.implementationState!;
+  const sd = rec(state.stateData);
+  const bp = input.blueprintData as Record<string, unknown>;
+  const team = getTeam(bp);
+  const pattern = getAgenticPattern(bp);
+
+  const lines: string[] = [];
+
+  // Header
+  lines.push('# implementation-state.yaml');
+  lines.push('# Pre-populated from last sync. Update and re-sync as implementation progresses.');
+  lines.push(`# Sync back to Agent Blueprint: agentblueprint sync --blueprint ${input.blueprintId}`);
+  lines.push('');
+  lines.push(`schema_version: "${str(sd.schema_version) || '1.0'}"`);
+  lines.push(`blueprint_id: "${input.blueprintId}"`);
+  lines.push(`last_updated: "${str(sd.last_updated)}"`);
+  lines.push('');
+  lines.push(`overall_status: ${str(sd.overall_status) || 'not_started'}  # not_started | in_progress | partial | complete`);
+  lines.push('');
+
+  // Platform
+  const plat = rec(sd.platform);
+  lines.push('platform:');
+  lines.push(`  name: "${yamlEscape(str(plat.name))}"`);
+  lines.push(`  version: "${yamlEscape(str(plat.version))}"`);
+  lines.push(`  environment: "${yamlEscape(str(plat.environment))}"`);
+  lines.push('');
+
+  // Build lookup of synced agents by lowercase name
+  const stateAgents = arr(sd.agents);
+  const stateAgentsByName = new Map<string, Record<string, unknown>>();
+  for (const sa of stateAgents) {
+    const a = rec(sa);
+    const name = str(a.name).toLowerCase().trim();
+    if (name) stateAgentsByName.set(name, a);
+  }
+
+  // Build lookup of blueprint agents by lowercase name for role/tools hints
+  const bpAgentsByName = new Map<string, Record<string, unknown>>();
+  for (const ta of team) {
+    const a = ta as Record<string, unknown>;
+    const name = str(a.name).toLowerCase().trim();
+    if (name) bpAgentsByName.set(name, a);
+  }
+
+  // Merge: start with synced agents, then add any blueprint agents not in state
+  const seenNames = new Set<string>();
+  const mergedAgents: { stateAgent: Record<string, unknown> | null; bpAgent: Record<string, unknown> | null }[] = [];
+
+  for (const sa of stateAgents) {
+    const a = rec(sa);
+    const name = str(a.name).toLowerCase().trim();
+    seenNames.add(name);
+    mergedAgents.push({ stateAgent: a, bpAgent: bpAgentsByName.get(name) || null });
+  }
+  for (const ta of team) {
+    const a = ta as Record<string, unknown>;
+    const name = str(a.name).toLowerCase().trim();
+    if (!seenNames.has(name)) {
+      seenNames.add(name);
+      mergedAgents.push({ stateAgent: null, bpAgent: a });
+    }
+  }
+
+  // Agents
+  if (mergedAgents.length === 0) {
+    lines.push('agents: []');
+  } else {
+    lines.push('agents:');
+    for (let i = 0; i < mergedAgents.length; i++) {
+      const { stateAgent, bpAgent } = mergedAgents[i];
+
+      // Name from state or blueprint
+      const name = stateAgent ? str(stateAgent.name) : str(bpAgent!.name);
+      const escapedName = yamlEscape(name);
+
+      // Role/tools hint from blueprint
+      if (bpAgent) {
+        const type = str(bpAgent.agentRole) || str(bpAgent.orchestrationRole) || str(bpAgent.type) || 'Worker';
+        const tools = arr(bpAgent.enhancedTools).map((t: Record<string, unknown>) => str(t.name)).filter(Boolean);
+        const toolHint = tools.length > 0 ? ` | tools: ${tools.join(', ')}` : '';
+        lines.push(`  - name: "${escapedName}"`);
+        lines.push(`    # role: ${type}${toolHint}`);
+      } else {
+        lines.push(`  - name: "${escapedName}"`);
+      }
+
+      if (stateAgent) {
+        const status = str(stateAgent.status) || 'not_started';
+        const artifact = str(stateAgent.platform_artifact);
+        const deviations = arr(stateAgent.deviations).map((d: unknown) => str(d)).filter(Boolean);
+        const integrations = arr(stateAgent.integrations_connected).map((ic: unknown) => str(ic)).filter(Boolean);
+        const notes = str(stateAgent.notes);
+
+        if (i === 0) {
+          lines.push(`    status: ${status}  # not_started | in_progress | implemented | modified | skipped`);
+          lines.push(`    platform_artifact: "${yamlEscape(artifact)}"`);
+        } else {
+          lines.push(`    status: ${status}`);
+          lines.push(`    platform_artifact: "${yamlEscape(artifact)}"`);
+        }
+        lines.push(`    deviations: ${yamlStringArray(deviations, '    ')}`);
+        lines.push(`    integrations_connected: ${yamlStringArray(integrations, '    ')}`);
+        lines.push(`    notes: "${yamlEscape(notes)}"`);
+      } else {
+        // Blueprint agent not yet in synced state
+        if (i === 0) {
+          lines.push('    status: not_started  # not_started | in_progress | implemented | modified | skipped');
+          lines.push('    platform_artifact: ""');
+        } else {
+          lines.push('    status: not_started');
+          lines.push('    platform_artifact: ""');
+        }
+        lines.push('    deviations: []');
+        lines.push('    integrations_connected: []');
+        lines.push('    notes: ""');
+      }
+      if (i < mergedAgents.length - 1) lines.push('');
+    }
+  }
+  lines.push('');
+
+  // Architecture
+  const arch = rec(sd.architecture);
+  const archPattern = str(arch.pattern);
+  const archDeviations = arr(arch.deviations).map((d: unknown) => str(d)).filter(Boolean);
+  const archComponents = arr(arch.additional_components).map((c: unknown) => str(c)).filter(Boolean);
+
+  lines.push('architecture:');
+  lines.push(`  pattern: "${yamlEscape(archPattern)}"${archPattern ? '' : `        # actual pattern used (spec recommends: ${pattern})`}`);
+  lines.push(`  deviations: ${yamlStringArray(archDeviations, '  ')}`);
+  lines.push(`  additional_components: ${yamlStringArray(archComponents, '  ')}`);
+  lines.push('');
+
+  // Metrics observed
+  const metricsObserved = arr(sd.metrics_observed);
+  if (metricsObserved.length > 0) {
+    lines.push('metrics_observed:');
+    for (const m of metricsObserved) {
+      const mr = rec(m);
+      lines.push(`  - metric: "${yamlEscape(str(mr.metric))}"`);
+      lines.push(`    target: "${yamlEscape(str(mr.target))}"`);
+      lines.push(`    actual: "${yamlEscape(str(mr.actual))}"`);
+      lines.push(`    measured_at: "${yamlEscape(str(mr.measured_at))}"`);
+      if (str(mr.source)) {
+        lines.push(`    source: "${yamlEscape(str(mr.source))}"`);
+      }
     }
   } else {
     lines.push('metrics_observed: []');

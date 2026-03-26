@@ -749,6 +749,146 @@ describe('implementation-state.yaml', () => {
   });
 });
 
+describe('implementation-state.yaml pre-populated from synced state', () => {
+  const syncedState: ImplementationStateResponse = {
+    id: 'state-1',
+    blueprintId: 'bp-123',
+    organizationId: 'org-1',
+    stateData: {
+      schema_version: '1.0',
+      blueprint_id: 'bp-123',
+      last_updated: '2026-03-20T12:00:00Z',
+      overall_status: 'in_progress',
+      platform: { name: 'ServiceNow', version: 'Australia', environment: 'dev' },
+      agents: [
+        {
+          name: 'Test Agent',
+          status: 'implemented',
+          platform_artifact: 'sys_id:abc123',
+          deviations: ['Used Flow Designer instead of Workflow'],
+          integrations_connected: ['CMDB', 'Service Portal'],
+          notes: 'Working well',
+        },
+      ],
+      architecture: {
+        pattern: 'Supervisor',
+        deviations: ['Added fallback routing'],
+        additional_components: ['Custom REST API'],
+      },
+      metrics_observed: [
+        { metric: 'Resolution Time', target: '<4h', actual: '3.2h', measured_at: '2026-03-19', source: 'dashboard' },
+      ],
+    },
+    schemaVersion: '1.0',
+    syncedAt: '2026-03-20T12:00:00Z',
+    syncedBy: 'cli',
+    previousStateId: null,
+  };
+
+  it('populates YAML from synced state instead of blank template', () => {
+    const input: SkillRenderInput = { ...minimalInput, implementationState: syncedState };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('overall_status: in_progress');
+    expect(state).toContain('name: "ServiceNow"');
+    expect(state).toContain('version: "Australia"');
+    expect(state).toContain('environment: "dev"');
+    expect(state).toContain('status: implemented');
+    expect(state).toContain('platform_artifact: "sys_id:abc123"');
+    expect(state).toContain('Used Flow Designer instead of Workflow');
+    expect(state).toContain('notes: "Working well"');
+  });
+
+  it('includes pre-populated header comment', () => {
+    const input: SkillRenderInput = { ...minimalInput, implementationState: syncedState };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('Pre-populated from last sync');
+  });
+
+  it('populates architecture from synced state', () => {
+    const input: SkillRenderInput = { ...minimalInput, implementationState: syncedState };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('pattern: "Supervisor"');
+    expect(state).toContain('Added fallback routing');
+    expect(state).toContain('Custom REST API');
+  });
+
+  it('populates metrics_observed from synced state', () => {
+    const input: SkillRenderInput = { ...minimalInput, implementationState: syncedState };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('metric: "Resolution Time"');
+    expect(state).toContain('target: "<4h"');
+    expect(state).toContain('actual: "3.2h"');
+    expect(state).toContain('source: "dashboard"');
+  });
+
+  it('populates integrations_connected from synced state', () => {
+    const input: SkillRenderInput = { ...minimalInput, implementationState: syncedState };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('CMDB');
+    expect(state).toContain('Service Portal');
+  });
+
+  it('still renders blank template when no synced state exists', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('overall_status: not_started');
+    expect(state).toContain('last_updated: ""');
+    expect(state).not.toContain('Pre-populated');
+  });
+
+  it('renders blank template when all agents are not_started', () => {
+    const allNotStarted: ImplementationStateResponse = {
+      ...syncedState,
+      stateData: {
+        ...syncedState.stateData as Record<string, unknown>,
+        overall_status: 'not_started',
+        agents: [
+          { name: 'Test Agent', status: 'not_started', platform_artifact: '', deviations: [], integrations_connected: [], notes: '' },
+        ],
+      },
+    };
+    const input: SkillRenderInput = { ...minimalInput, implementationState: allNotStarted };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    // Should use blank template since hasImplementationData returns false
+    expect(state).not.toContain('Pre-populated');
+    expect(state).toContain('last_updated: ""');
+  });
+
+  it('merges blueprint agents not in synced state as not_started', () => {
+    const input: SkillRenderInput = {
+      ...minimalInput,
+      blueprintData: {
+        ...minimalInput.blueprintData,
+        enhancedDigitalTeam: [
+          { name: 'Test Agent', agentRole: 'Worker', enhancedTools: [{ name: 'TestRunner', description: 'Runs tests' }], successMetrics: [{ metric: 'Test Pass Rate', target: '99%' }] },
+          { name: 'New Agent', agentRole: 'Manager', enhancedTools: [], successMetrics: [] },
+        ],
+      },
+      implementationState: syncedState,
+    };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    // Synced agent should be populated
+    expect(state).toContain('status: implemented');
+    // Blueprint-only agent should appear as not_started
+    expect(state).toContain('name: "New Agent"');
+    expect(state).toMatch(/name: "New Agent"[\s\S]*?status: not_started/);
+  });
+
+  it('preserves role/tools hints from blueprint on pre-populated agents', () => {
+    const input: SkillRenderInput = { ...minimalInput, implementationState: syncedState };
+    const files = renderSkillDirectory(input);
+    const state = files.get('implementation-state.yaml')!;
+    expect(state).toContain('# role: Worker | tools: TestRunner');
+  });
+});
+
 describe('GETTING-STARTED.md implementation state reference', () => {
   it('mentions implementation-state.yaml', () => {
     const files = renderSkillDirectory(minimalInput);
