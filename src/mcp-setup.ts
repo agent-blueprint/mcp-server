@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { writeFile, mkdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createInterface } from 'node:readline';
@@ -10,8 +10,8 @@ const execFileAsync = promisify(execFile);
  * Interactive setup for the ServiceNow MCP server.
  *
  * Installs the `servicenow-mcp-server` npm package globally if needed,
- * writes instance credentials, and configures `.claude/settings.json`
- * so Claude Code auto-discovers the MCP server on next launch.
+ * writes instance credentials, and prints the MCP config snippet for
+ * the user to add to their coding agent of choice.
  */
 export async function setupServiceNowMcp(): Promise<void> {
   console.error('\n--- ServiceNow MCP Server Setup ---\n');
@@ -52,7 +52,7 @@ export async function setupServiceNowMcp(): Promise<void> {
       console.error('Installing servicenow-mcp-server globally...');
       try {
         await execFileAsync('npm', ['install', '-g', 'servicenow-mcp-server']);
-      } catch (err) {
+      } catch {
         console.error(
           `Failed to install servicenow-mcp-server globally. Install manually with:\n  npm install -g servicenow-mcp-server`
         );
@@ -60,7 +60,7 @@ export async function setupServiceNowMcp(): Promise<void> {
       }
     }
 
-    // 3. Resolve absolute binary path (avoids nvm/fnm/volta PATH issues at Claude Code launch)
+    // 3. Resolve absolute binary path (avoids nvm/fnm/volta PATH issues)
     let binaryPath: string;
     try {
       const { stdout } = await execFileAsync('which', ['servicenow-mcp-server']);
@@ -103,55 +103,27 @@ export async function setupServiceNowMcp(): Promise<void> {
     const configPath = join(configDir, 'servicenow-instances.json');
     await writeFile(configPath, configContent, { encoding: 'utf-8', mode: 0o600 });
 
-    // 6. Write/merge .claude/settings.json
-    const claudeDir = join(process.cwd(), '.claude');
-    await mkdir(claudeDir, { recursive: true });
-
-    const settingsPath = join(claudeDir, 'settings.json');
-    let settings: Record<string, unknown> = {};
-
-    try {
-      const raw = await readFile(settingsPath, 'utf-8');
-      settings = JSON.parse(raw) as Record<string, unknown>;
-    } catch (err: unknown) {
-      const error = err as NodeJS.ErrnoException;
-      if (error.code !== 'ENOENT') throw err;
-      // File doesn't exist yet, start fresh
-    }
-
-    const mcpServers = (settings.mcpServers ?? {}) as Record<string, unknown>;
-    mcpServers.servicenow = {
-      command: binaryPath,
-      args: [],
-    };
-    settings.mcpServers = mcpServers;
-
-    await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
-
-    // 7. Append to .gitignore if not already present
-    const gitignorePath = join(process.cwd(), '.gitignore');
-    const gitignoreEntry = '.claude/settings.json';
-
-    let gitignoreContent = '';
-    try {
-      gitignoreContent = await readFile(gitignorePath, 'utf-8');
-    } catch {
-      // .gitignore doesn't exist yet
-    }
-
-    if (!gitignoreContent.split('\n').some((line) => line.trim() === gitignoreEntry)) {
-      const suffix = gitignoreContent.length > 0 && !gitignoreContent.endsWith('\n') ? '\n' : '';
-      await writeFile(gitignorePath, gitignoreContent + suffix + gitignoreEntry + '\n', 'utf-8');
-    }
-
-    // 8. Print success
+    // 6. Print success and MCP config snippet
     console.error('');
     console.error('ServiceNow MCP server configured:');
     console.error(`  Instance:    ${instanceName}`);
     console.error(`  Config:      ${configPath}`);
     console.error(`  Binary:      ${binaryPath}`);
     console.error('');
-    console.error('Restart Claude Code to connect.');
+    console.error('Add this to your coding agent\'s MCP config:');
+    console.error('');
+    console.error(JSON.stringify({
+      mcpServers: {
+        servicenow: {
+          command: binaryPath,
+          args: [],
+        },
+      },
+    }, null, 2));
+    console.error('');
+    console.error('For Claude Code: add to .claude/settings.json or ~/.claude/settings.json');
+    console.error('For Cursor: add to .cursor/mcp.json');
+    console.error('Then restart your coding agent to connect.');
   } finally {
     rl.close();
   }
