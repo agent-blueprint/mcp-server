@@ -1164,7 +1164,7 @@ function hasImplementationData(input: SkillRenderInput): boolean {
   return agents.some((a: unknown) => str(rec(a).status) !== 'not_started');
 }
 
-export function hasProgressData(input: SkillRenderInput): boolean {
+function hasProgressData(input: SkillRenderInput): boolean {
   if (!input.progress) return false;
   return input.progress.actuals.length > 0;
 }
@@ -1298,143 +1298,6 @@ function buildCurrentState(input: SkillRenderInput): string {
     lines.push('');
     const s = progress.summary;
     lines.push(`${s.onTrack} on track, ${s.minorDeviation} minor deviation, ${s.majorDeviation} major deviation.`, '');
-  }
-
-  return lines.join('\n');
-}
-
-// =============================================================================
-// RECOMMENDATIONS.md (new file on return visits)
-// =============================================================================
-
-function buildRecommendations(input: SkillRenderInput): string {
-  const lines: string[] = [];
-  lines.push('# Recommendations', '');
-  lines.push('> Prioritized next actions based on implementation state and performance data.', '');
-
-  let recNum = 0;
-  const bp = rec(input.blueprintData);
-  const team = arr(bp.enhancedDigitalTeam);
-  const bc = rec(input.businessCaseData);
-
-  // --- Section 1: Unimplemented agents ---
-  if (hasImplementationData(input)) {
-    const sd = rec(input.implementationState!.stateData);
-    const stateAgents = arr(sd.agents);
-
-    interface AgentRec {
-      name: string;
-      role: string;
-      status: string;
-    }
-
-    const unimplemented: AgentRec[] = [];
-    for (const sa of stateAgents) {
-      const a = rec(sa);
-      const status = str(a.status);
-      if (status === 'implemented' || status === 'modified' || status === 'skipped') continue;
-
-      const name = str(a.name);
-      const bpAgent = team.find((t: unknown) => str(rec(t).name).toLowerCase().trim() === name.toLowerCase().trim());
-      const role = bpAgent ? str(rec(bpAgent).role) || str(rec(bpAgent).agentRole) : '-';
-
-      unimplemented.push({ name, role, status });
-    }
-
-    if (unimplemented.length > 0) {
-      lines.push('## Next Agents to Implement', '');
-      for (const agent of unimplemented) {
-        recNum++;
-        const statusLabel = agent.status === 'in_progress' ? ' (in progress)' : '';
-        lines.push(`### ${recNum}. ${agent.status === 'in_progress' ? 'Continue' : 'Implement'} ${agent.name}${statusLabel}`, '');
-        lines.push(`Role: ${agent.role}`);
-        lines.push(`Read agent spec in \`references/agent-specifications.md\`.`, '');
-      }
-    }
-  }
-
-  // --- Section 2: Metric deviations ---
-  if (hasProgressData(input)) {
-    const progress = input.progress!;
-    const deviating = progress.actuals
-      .filter(a => a.status === 'major_deviation' || a.status === 'minor_deviation')
-      .sort((a, b) => {
-        // Major before minor
-        if (a.status !== b.status) return a.status === 'major_deviation' ? -1 : 1;
-        // Then by absolute deviation descending
-        const absA = Math.abs(a.deviationPercent ?? 0);
-        const absB = Math.abs(b.deviationPercent ?? 0);
-        return absB - absA;
-      });
-
-    if (deviating.length > 0) {
-      lines.push('## Metrics Requiring Attention', '');
-      for (const metric of deviating) {
-        recNum++;
-        const devPct = metric.deviationPercent != null ? `${metric.deviationPercent > 0 ? '+' : ''}${metric.deviationPercent.toFixed(1)}%` : '-';
-        lines.push(`### ${recNum}. Address ${metric.metricName} deviation`, '');
-        lines.push(`Target: ${metric.predictedValue} | Actual: ${metric.actualValue} | Deviation: ${devPct}`);
-        lines.push(`Status: ${metric.status}`);
-
-        // Financial context
-        const quantifiedROI = rec(rec(bc.benefits).quantifiedROI);
-        if (metric.metricType === 'financial' && str(quantifiedROI.roi)) {
-          lines.push(`Financial impact: This metric is tracked against the projected ${str(quantifiedROI.roi)} ROI in the business case.`);
-        } else if (str(quantifiedROI.roi)) {
-          const annualSavings = str(rec(rec(quantifiedROI.laborCostDetail).projectedSavings).costSavingsAnnual);
-          if (annualSavings) {
-            lines.push(`Financial context: Operational metrics drive the projected ${annualSavings} annual savings in the business case.`);
-          }
-        }
-        lines.push('');
-      }
-    }
-  }
-
-  // --- Section 3: Spec deviations ---
-  if (hasImplementationData(input)) {
-    const sd = rec(input.implementationState!.stateData);
-    const stateAgents = arr(sd.agents);
-
-    const agentsWithDeviations = stateAgents
-      .map((a: unknown) => rec(a))
-      .filter(a => arr(a.deviations).length > 0);
-
-    if (agentsWithDeviations.length > 0) {
-      lines.push('## Deviations to Review', '');
-      for (const agent of agentsWithDeviations) {
-        recNum++;
-        const name = str(agent.name);
-        const bpAgent = team.find((t: unknown) => str(rec(t).name).toLowerCase().trim() === name.toLowerCase().trim());
-        const role = bpAgent ? str(rec(bpAgent).role) || str(rec(bpAgent).agentRole) : '-';
-
-        lines.push(`### ${recNum}. Review deviations: ${name}`, '');
-        lines.push(`Planned role: ${role}`, '');
-        for (const d of arr(agent.deviations)) {
-          lines.push(`- ${str(d)}`);
-        }
-        lines.push('');
-        lines.push('Check if these deviations affect the agent\'s success metrics in `references/evaluation-criteria.md`.', '');
-      }
-    }
-  }
-
-  // --- Section 4: Financial impact note ---
-  if (hasProgressData(input)) {
-    const progress = input.progress!;
-    const deviationCount = progress.summary.minorDeviation + progress.summary.majorDeviation;
-    const quantifiedROI = rec(rec(bc.benefits).quantifiedROI);
-
-    if (deviationCount > 0 && str(quantifiedROI.roi)) {
-      lines.push('## Financial Impact Note', '');
-      const payback = str(quantifiedROI.paybackPeriod);
-      lines.push(`${deviationCount} metric${deviationCount > 1 ? 's are' : ' is'} deviating from targets. The business case projected ${str(quantifiedROI.roi)} ROI${payback ? ` and ${payback} payback period` : ''}.`);
-      lines.push('Track whether deviations affect these projections using Agent Blueprint\'s performance monitoring.', '');
-    }
-  }
-
-  if (recNum === 0) {
-    lines.push('All agents implemented and metrics on track. No action items at this time.', '');
   }
 
   return lines.join('\n');
@@ -1701,7 +1564,7 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push('');
   lines.push('YOU ARE CONTINUING AN IMPLEMENTATION. Implementation state has been synced');
   lines.push('back to Agent Blueprint. Read `CURRENT-STATE.md` for where things stand');
-  lines.push('and `RECOMMENDATIONS.md` for what to do next.');
+  lines.push('for where things stand.');
   lines.push('');
   lines.push('## Current status');
   lines.push('');
@@ -1745,16 +1608,7 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push('');
 
   // Step 2
-  lines.push('## Step 2: Follow recommendations');
-  lines.push('');
-  lines.push('Read `RECOMMENDATIONS.md` for prioritized next actions:');
-  lines.push('- Agents to implement next');
-  lines.push('- Metrics that need attention (deviations from targets)');
-  lines.push('- Deviations from spec that warrant review');
-  lines.push('');
-
-  // Step 3
-  lines.push('## Step 3: Continue implementation');
+  lines.push('## Step 2: Continue implementation');
   lines.push('');
   if (inProgressNames.length > 0) {
     lines.push(`Agent${inProgressNames.length > 1 ? 's' : ''} in progress: ${inProgressNames.join(', ')}. Pick up where you left off.`);
@@ -2623,13 +2477,12 @@ function buildAgentsMd(input: SkillRenderInput): string {
   lines.push('When you deviate from the spec (different tool, different approach, skipped an agent):');
   lines.push('1. Update the agent\'s `deviations` array in implementation-state.yaml');
   lines.push('2. Include a brief reason (e.g., "Used Flow Designer instead of Workflow -- better parallel support")');
-  lines.push('3. Sync so Agent Blueprint can track spec drift and adjust recommendations');
+  lines.push('3. Sync so Agent Blueprint can track spec drift');
   lines.push('');
 
   lines.push('## Why this matters');
   lines.push('');
   lines.push('Each sync creates a versioned snapshot. Agent Blueprint uses your progress to:');
-  lines.push('- Generate prioritized next-step recommendations');
   lines.push('- Track spec drift and surface deviations that need attention');
   lines.push('- Compare actual performance against predicted targets');
   lines.push('- Improve future blueprints based on real-world outcomes');
@@ -2753,9 +2606,6 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
   // Reality layer (return visits -- Living Blueprint Phase 3A)
   if (hasImplementationData(input)) {
     files.set('CURRENT-STATE.md', buildCurrentState(input));
-  }
-  if (hasImplementationData(input) || hasProgressData(input)) {
-    files.set('RECOMMENDATIONS.md', buildRecommendations(input));
   }
 
   return files;
