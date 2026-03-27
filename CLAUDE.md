@@ -17,6 +17,7 @@ Two entry points, one shared core:
 ```
 src/cli.ts              CLI entry (TTY → help, piped → MCP server)
 src/download.ts         CLI download handler (writes files to disk)
+src/mcp-setup.ts        ServiceNow MCP server setup (credentials, install, config)
 src/tools/*.ts          MCP tool handlers (return JSON manifests)
 src/fetch-blueprint.ts  SHARED: data fetching + rendering (used by both CLI and MCP)
 src/directives.ts       SHARED: post-download agent directives (used by both CLI and MCP)

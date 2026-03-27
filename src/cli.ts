@@ -45,7 +45,7 @@ Usage:
   agentblueprint get implementation-plan <id> [--org <id>]  Implementation plan summary
   agentblueprint get implementation-spec <id> [--org <id>]  Implementation spec metadata
   agentblueprint get business-profile [--org <id>]      Business profile
-  agentblueprint download <id> [--org <id>] [--dir <path>]  Download as Agent Skills
+  agentblueprint download <id> [--org <id>] [--dir <path>] [--platform <p>] [--no-mcp]  Download as Agent Skills
   agentblueprint sync [<file>] [--blueprint <id>] [--org <id>]  Sync implementation state
   agentblueprint --help                                 Show this help
   agentblueprint --version                              Show version

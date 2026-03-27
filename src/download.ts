@@ -12,6 +12,7 @@ export interface DownloadArgs {
   list: boolean;
   customerOrgId?: string;
   platform?: string;
+  noMcp?: boolean;
 }
 
 export function parseDownloadArgs(args: string[]): DownloadArgs {
@@ -38,6 +39,9 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
       case '--platform':
         result.platform = args[++i];
         break;
+      case '--no-mcp':
+        result.noMcp = true;
+        break;
       default:
         // Positional arg: treat as blueprint ID if it doesn't start with --
         if (!arg.startsWith('--') && !result.blueprintId) {
@@ -63,7 +67,7 @@ export async function runDownload(config: Config, args: DownloadArgs): Promise<v
     process.exit(1);
   }
 
-  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId, args.platform);
+  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId, args.platform, args.noMcp);
 }
 
 async function listBlueprints(client: AgentBlueprintClient, customerOrgId?: string): Promise<void> {
@@ -116,7 +120,8 @@ async function downloadBlueprint(
   blueprintId: string,
   baseDir: string,
   customerOrgId?: string,
-  platform?: string
+  platform?: string,
+  noMcp?: boolean
 ): Promise<void> {
   blueprintId = await resolveId(client, blueprintId, customerOrgId);
   console.error(`Fetching blueprint ${blueprintId}...`);
@@ -173,4 +178,9 @@ async function downloadBlueprint(
     hasBaseSkill: result.hasBaseSkill,
     vendorSkillName: result.vendorSkillName,
   }));
+
+  if (platform === 'servicenow' && !noMcp) {
+    const { setupServiceNowMcp } = await import('./mcp-setup.js');
+    await setupServiceNowMcp();
+  }
 }

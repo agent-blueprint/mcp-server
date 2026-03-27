@@ -44,6 +44,16 @@ describe('parseDownloadArgs', () => {
     expect(result.dir).toBe('.agent-blueprint');
     expect(result.list).toBe(false);
   });
+
+  it('parses --no-mcp flag', () => {
+    const result = parseDownloadArgs(['abc-123', '--no-mcp']);
+    expect(result.noMcp).toBe(true);
+  });
+
+  it('noMcp defaults to falsy', () => {
+    const result = parseDownloadArgs(['abc-123']);
+    expect(result.noMcp).toBeFalsy();
+  });
 });
 
 describe('CLI binary', () => {
