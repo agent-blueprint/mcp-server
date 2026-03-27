@@ -28,10 +28,9 @@ export async function fetchAndRenderBlueprint(
   const orgId = opts.customerOrgId;
 
   // Fetch all data in parallel (base skill included -- graceful degradation if unavailable)
-  const [blueprint, businessCase, implementationPlan, useCase, businessProfile, baseSkill] = await Promise.all([
+  const [blueprint, businessCase, useCase, businessProfile, baseSkill] = await Promise.all([
     client.getBlueprint(blueprintId, orgId),
     client.getBusinessCase(blueprintId, orgId).catch(() => null),
-    client.getImplementationPlan(blueprintId, orgId).catch(() => null),
     client.getUseCase(blueprintId, orgId).catch(() => null),
     client.getBusinessProfile(orgId).catch(() => null),
     client.getBaseSkill().catch(() => null),
@@ -75,7 +74,7 @@ export async function fetchAndRenderBlueprint(
     blueprintId,
     blueprintData: bpData,
     businessCaseData: businessCase?.data,
-    implementationPlanData: implementationPlan?.data,
+
     useCaseData: useCase as Record<string, unknown> | undefined,
     businessProfileData: (businessProfile as unknown as Record<string, unknown>) ?? undefined,
     generalGuide: generalGuideData?.content,

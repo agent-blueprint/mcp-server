@@ -18,7 +18,7 @@ export interface SkillRenderInput {
   organizationName?: string;
   blueprintData: Record<string, unknown>;
   businessCaseData?: Record<string, unknown>;
-  implementationPlanData?: Record<string, unknown>;
+
   useCaseData?: Record<string, unknown>;
   businessProfileData?: Record<string, unknown>;
   generalGuide?: string;
@@ -238,103 +238,65 @@ function buildSkillBody(input: SkillRenderInput): string {
   lines.push('');
   lines.push('> Full agent specifications in `references/agent-specifications.md`', '');
 
-  // Phase rendering — prefer implementation plan epics when available
-  const ipEpics = input.implementationPlanData ? arr(rec(input.implementationPlanData).epics) : [];
-  if (ipEpics.length > 0) {
-    const pilotEpics = ipEpics.filter((e: any) => str(rec(e).phase).toLowerCase().includes('pilot'));
-    const fullEpics = ipEpics.filter((e: any) => !str(rec(e).phase).toLowerCase().includes('pilot'));
+  // Phase rendering — always uses blueprint phases
+  lines.push('## Phase 1: Pilot', '');
+  const phases = arr(bp.phases);
+  const pilotPhase = phases.find(
+    (p: any) => str(p?.name).toLowerCase().includes('pilot') || str(p?.name).toLowerCase().includes('phase 1')
+  );
+  if (pilotPhase) {
+    const p = rec(pilotPhase);
+    if (str(p.phaseGoal)) lines.push(`**Goal:** ${str(p.phaseGoal)}`, '');
+    if (p.durationWeeks) lines.push(`**Duration:** ${p.durationWeeks} weeks`);
+    if (str(p.phaseCost)) lines.push(`**Cost target:** ${str(p.phaseCost)}`);
+    lines.push('');
 
-    lines.push('## Phase 1: Pilot', '');
-    if (pilotEpics.length > 0) {
-      const seen = new Set<string>();
-      for (const epic of pilotEpics) {
-        const e = rec(epic);
-        const name = str(e.name);
-        if (name && !seen.has(name)) {
-          seen.add(name);
-          lines.push(`- **${name}**${str(e.estimatedDuration) ? ` (${str(e.estimatedDuration)})` : ''}`);
-        }
+    const workstreams = arr(p.workstreams);
+    if (workstreams.length > 0) {
+      lines.push('**Pilot workstreams:**', '');
+      for (const ws of workstreams) {
+        const w = rec(ws);
+        lines.push(`- ${str(w.title)}`);
       }
       lines.push('');
-    } else {
-      lines.push('_No pilot epics defined. See `references/implementation-roadmap.md` for phasing._', '');
     }
 
-    lines.push('## Phase 2: Full Implementation', '');
-    if (fullEpics.length > 0) {
-      const seen = new Set<string>();
-      for (const epic of fullEpics) {
-        const e = rec(epic);
-        const name = str(e.name);
-        if (name && !seen.has(name)) {
-          seen.add(name);
-          lines.push(`- **${name}**${str(e.estimatedDuration) ? ` (${str(e.estimatedDuration)})` : ''}`);
-        }
+    const gate = rec(p.decisionGate);
+    if (gate.criteria) {
+      lines.push('**Decision gate criteria:**', '');
+      for (const c of arr(gate.criteria)) {
+        const cr = rec(c);
+        const label = str(cr.name) || str(cr.criterion) || str(cr.metric) || str(cr.description) || 'Unnamed criterion';
+        lines.push(`- ${label}: ${str(cr.target) || str(cr.threshold)}`);
       }
       lines.push('');
-    } else {
-      lines.push('_See `references/implementation-roadmap.md` for full rollout plan._', '');
+    }
+
+    const exitCriteria = arr(p.exitCriteria);
+    if (exitCriteria.length > 0) {
+      lines.push('**Exit criteria:**', '');
+      for (const c of exitCriteria) lines.push(`- ${c}`);
+      lines.push('');
     }
   } else {
-    lines.push('## Phase 1: Pilot', '');
-    const phases = arr(bp.phases);
-    const pilotPhase = phases.find(
-      (p: any) => str(p?.name).toLowerCase().includes('pilot') || str(p?.name).toLowerCase().includes('phase 1')
-    );
-    if (pilotPhase) {
-      const p = rec(pilotPhase);
-      if (str(p.phaseGoal)) lines.push(`**Goal:** ${str(p.phaseGoal)}`, '');
+    lines.push('_No pilot phase defined._', '');
+  }
+
+  lines.push('## Phase 2: Full Implementation', '');
+  const fullPhases = phases.filter(
+    (p: any) => !str(p?.name).toLowerCase().includes('pilot') && !str(p?.name).toLowerCase().includes('phase 1')
+  );
+  if (fullPhases.length > 0) {
+    for (const phase of fullPhases) {
+      const p = rec(phase);
+      lines.push(`### ${str(p.name)}`, '');
+      if (str(p.phaseGoal)) lines.push(str(p.phaseGoal), '');
       if (p.durationWeeks) lines.push(`**Duration:** ${p.durationWeeks} weeks`);
-      if (str(p.phaseCost)) lines.push(`**Cost target:** ${str(p.phaseCost)}`);
+      if (str(p.phaseCost)) lines.push(`**Cost:** ${str(p.phaseCost)}`);
       lines.push('');
-
-      const workstreams = arr(p.workstreams);
-      if (workstreams.length > 0) {
-        lines.push('**Pilot workstreams:**', '');
-        for (const ws of workstreams) {
-          const w = rec(ws);
-          lines.push(`- ${str(w.title)}`);
-        }
-        lines.push('');
-      }
-
-      const gate = rec(p.decisionGate);
-      if (gate.criteria) {
-        lines.push('**Decision gate criteria:**', '');
-        for (const c of arr(gate.criteria)) {
-          const cr = rec(c);
-          const label = str(cr.name) || str(cr.criterion) || str(cr.metric) || str(cr.description) || 'Unnamed criterion';
-          lines.push(`- ${label}: ${str(cr.target) || str(cr.threshold)}`);
-        }
-        lines.push('');
-      }
-
-      const exitCriteria = arr(p.exitCriteria);
-      if (exitCriteria.length > 0) {
-        lines.push('**Exit criteria:**', '');
-        for (const c of exitCriteria) lines.push(`- ${c}`);
-        lines.push('');
-      }
-    } else {
-      lines.push('_No pilot phase defined. See `references/implementation-roadmap.md` for phasing._', '');
     }
-
-    lines.push('## Phase 2: Full Implementation', '');
-    const fullPhases = phases.filter(
-      (p: any) => !str(p?.name).toLowerCase().includes('pilot') && !str(p?.name).toLowerCase().includes('phase 1')
-    );
-    if (fullPhases.length > 0) {
-      for (const phase of fullPhases) {
-        const p = rec(phase);
-        lines.push(`### ${str(p.name)}`, '');
-        if (str(p.phaseGoal)) lines.push(str(p.phaseGoal), '');
-        if (p.durationWeeks) lines.push(`**Duration:** ${p.durationWeeks} weeks`);
-        if (str(p.phaseCost)) lines.push(`**Cost:** ${str(p.phaseCost)}`);
-        lines.push('');
-      }
-    } else {
-      lines.push('_See `references/implementation-roadmap.md` for full rollout plan._', '');
-    }
+  } else {
+    lines.push('_No full rollout phases defined._', '');
   }
 
   // Financial Summary
@@ -964,127 +926,6 @@ function buildFinancialCase(input: SkillRenderInput): string {
   return lines.join('\n');
 }
 
-function buildImplementationRoadmap(input: SkillRenderInput): string {
-  const ip = input.implementationPlanData;
-  const lines: string[] = ['# Implementation Roadmap', ''];
-
-  if (!ip) {
-    lines.push('_No implementation plan data available. Generate an Implementation Plan to enrich this section._', '');
-    return lines.join('\n');
-  }
-
-  const overview = rec(ip.projectOverview);
-  if (str(overview.projectName)) {
-    lines.push(`## ${str(overview.projectName)}`, '');
-  }
-  if (str(overview.executiveSummary)) {
-    lines.push(str(overview.executiveSummary), '');
-  }
-  if (str(overview.scope)) {
-    lines.push('### Scope', '', str(overview.scope), '');
-  }
-  const assumptions = arr(overview.assumptions);
-  if (assumptions.length > 0) {
-    lines.push('### Assumptions', '');
-    for (const a of assumptions) lines.push(`- ${a}`);
-    lines.push('');
-  }
-
-  const epics = arr(ip.epics);
-  if (epics.length > 0) {
-    lines.push('## Epics', '');
-    for (const epic of epics) {
-      const e = rec(epic);
-      lines.push(`### ${str(e.name)}`, '');
-      if (str(e.description)) lines.push(str(e.description), '');
-      lines.push(`- **Phase:** ${str(e.phase)}`);
-      lines.push(`- **Priority:** ${str(e.priority)}`);
-      if (str(e.estimatedDuration)) lines.push(`- **Duration:** ${str(e.estimatedDuration)}`);
-      if (str(e.businessValue)) lines.push(`- **Business value:** ${str(e.businessValue)}`);
-      lines.push('');
-
-      const ac = arr(e.acceptanceCriteria);
-      if (ac.length > 0) {
-        lines.push('**Acceptance criteria:**', '');
-        for (const c of ac) lines.push(`- [ ] ${c}`);
-        lines.push('');
-      }
-
-      const stories = arr(e.stories);
-      if (stories.length > 0) {
-        lines.push('**User stories:**', '');
-        for (const story of stories) {
-          const s = rec(story);
-          const userStory = `As ${str(s.asA)}, I want ${str(s.iWant)}, so that ${str(s.soThat)}`;
-          lines.push(`- **${str(s.title)}**: ${userStory}`);
-          if (str(s.estimatedEffort)) lines.push(`  - Effort: ${str(s.estimatedEffort)}`);
-        }
-        lines.push('');
-      }
-
-      const deps = arr(e.dependencies);
-      if (deps.length > 0) {
-        lines.push('**Dependencies:**', '');
-        for (const d of deps) lines.push(`- ${d}`);
-        lines.push('');
-      }
-    }
-  }
-
-  const agentSpecs = arr(ip.agentSpecifications);
-  if (agentSpecs.length > 0) {
-    lines.push('## Agent Build Specifications', '');
-    for (const spec of agentSpecs) {
-      const s = rec(spec);
-      lines.push(`### ${str(s.name)}`, '');
-      if (str(s.role)) lines.push(str(s.role), '');
-      if (str(s.instructions)) lines.push('**Instructions:**', '', str(s.instructions), '');
-      if (str(s.linkedStoryId)) lines.push(`_Linked to story: ${str(s.linkedStoryId)}_`, '');
-    }
-  }
-
-  const resources = rec(ip.resources);
-  const timeline = rec(resources.timeline);
-  if (str(timeline.totalDuration)) {
-    lines.push('## Timeline', '');
-    lines.push(`**Total duration:** ${str(timeline.totalDuration)}`, '');
-    const timelinePhases = arr(timeline.phases);
-    if (timelinePhases.length > 0) {
-      for (const phase of timelinePhases) {
-        const p = rec(phase);
-        lines.push(`### ${str(p.name)} (${str(p.duration)})`, '');
-        for (const m of arr(p.milestones)) lines.push(`- ${m}`);
-        lines.push('');
-      }
-    }
-  }
-
-  const roles = arr(resources.roles);
-  if (roles.length > 0) {
-    lines.push('## Required Roles', '');
-    lines.push('| Role | Allocation | Duration | Key Skills |');
-    lines.push('|------|-----------|----------|------------|');
-    for (const role of roles) {
-      const r = rec(role);
-      const skills = arr(r.skillsRequired).slice(0, 3).join(', ');
-      lines.push(`| ${str(r.role)} | ${str(r.allocation)} | ${str(r.duration)} | ${skills} |`);
-    }
-    lines.push('');
-  }
-
-  const deps = arr(ip.dependencies);
-  if (deps.length > 0) {
-    lines.push('## Dependencies', '');
-    for (const dep of deps) {
-      const d = rec(dep);
-      lines.push(`- **${str(d.type)}** (${str(d.criticality)}): ${str(d.description)}`);
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
 function buildArchitectureDecisions(input: SkillRenderInput): string {
   const bp = input.blueprintData;
   const lines: string[] = ['# Architecture Decisions', ''];
@@ -1476,63 +1317,15 @@ function buildRecommendations(input: SkillRenderInput): string {
   const team = arr(bp.enhancedDigitalTeam);
   const bc = rec(input.businessCaseData);
 
-  // Build epic lookup for priority ordering
-  const epics = arr(rec(input.implementationPlanData).epics);
-  const epicByNormalizedName = new Map<string, { phase: string; priority: string; dependencies: string[] }>();
-  for (const e of epics) {
-    const epic = rec(e);
-    const name = str(epic.name).toLowerCase().trim();
-    epicByNormalizedName.set(name, {
-      phase: str(epic.phase),
-      priority: str(epic.priority) || 'P2',
-      dependencies: arr(epic.dependencies).map((d: unknown) => typeof d === 'string' ? d : str(rec(d).description) || str(d)),
-    });
-  }
-
-  // Helper to find the best-matching epic for an agent
-  function findEpicForAgent(agentName: string): { phase: string; priority: string; dependencies: string[] } | undefined {
-    const norm = agentName.toLowerCase().trim();
-    // Direct match
-    for (const [epicName, epic] of epicByNormalizedName) {
-      if (epicName.includes(norm) || norm.includes(epicName)) return epic;
-    }
-    // Word overlap
-    const agentWords = norm.split(/\s+/).filter(w => w.length > 2);
-    for (const [epicName, epic] of epicByNormalizedName) {
-      for (const word of agentWords) {
-        if (epicName.includes(word)) return epic;
-      }
-    }
-    return undefined;
-  }
-
-  // Priority sort key: P0=0, P1=1, P2=2, unknown=3
-  function priorityKey(p: string): number {
-    if (p === 'P0') return 0;
-    if (p === 'P1') return 1;
-    if (p === 'P2') return 2;
-    return 3;
-  }
-
   // --- Section 1: Unimplemented agents ---
   if (hasImplementationData(input)) {
     const sd = rec(input.implementationState!.stateData);
     const stateAgents = arr(sd.agents);
 
-    const implementedNames = new Set(
-      stateAgents
-        .map((a: unknown) => rec(a))
-        .filter(a => str(a.status) === 'implemented' || str(a.status) === 'modified')
-        .map(a => str(a.name).toLowerCase().trim())
-    );
-
     interface AgentRec {
       name: string;
       role: string;
       status: string;
-      phase: string;
-      priority: string;
-      priorityNum: number;
     }
 
     const unimplemented: AgentRec[] = [];
@@ -1544,22 +1337,9 @@ function buildRecommendations(input: SkillRenderInput): string {
       const name = str(a.name);
       const bpAgent = team.find((t: unknown) => str(rec(t).name).toLowerCase().trim() === name.toLowerCase().trim());
       const role = bpAgent ? str(rec(bpAgent).role) || str(rec(bpAgent).agentRole) : '-';
-      const epic = findEpicForAgent(name);
-      const phase = epic?.phase || '-';
-      const priority = epic?.priority || '-';
 
-      unimplemented.push({
-        name,
-        role,
-        status,
-        phase,
-        priority,
-        priorityNum: priorityKey(priority),
-      });
+      unimplemented.push({ name, role, status });
     }
-
-    // Sort by roadmap priority
-    unimplemented.sort((a, b) => a.priorityNum - b.priorityNum);
 
     if (unimplemented.length > 0) {
       lines.push('## Next Agents to Implement', '');
@@ -1568,7 +1348,6 @@ function buildRecommendations(input: SkillRenderInput): string {
         const statusLabel = agent.status === 'in_progress' ? ' (in progress)' : '';
         lines.push(`### ${recNum}. ${agent.status === 'in_progress' ? 'Continue' : 'Implement'} ${agent.name}${statusLabel}`, '');
         lines.push(`Role: ${agent.role}`);
-        if (agent.phase !== '-') lines.push(`Roadmap phase: ${agent.phase} | Priority: ${agent.priority}`);
         lines.push(`Read agent spec in \`references/agent-specifications.md\`.`, '');
       }
     }
@@ -1969,7 +1748,7 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push('## Step 2: Follow recommendations');
   lines.push('');
   lines.push('Read `RECOMMENDATIONS.md` for prioritized next actions:');
-  lines.push('- Agents to implement next (ordered by roadmap priority)');
+  lines.push('- Agents to implement next');
   lines.push('- Metrics that need attention (deviations from targets)');
   lines.push('- Deviations from spec that warrant review');
   lines.push('');
@@ -2115,7 +1894,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('');
   lines.push('- `references/agent-specifications.md` -- detailed agent team design (start here)');
   lines.push('- `references/architecture-decisions.md` -- platform rationale and integration gaps');
-  lines.push('- `references/implementation-roadmap.md` -- phased rollout plan with epics and stories');
+
   lines.push('- `references/guardrails-and-governance.md` -- risk controls and escalation rules');
   lines.push('');
 
@@ -2179,7 +1958,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 3
   lines.push('## Step 3: Build and validate the pilot');
   lines.push('');
-  lines.push('Check `references/implementation-roadmap.md` for Phase 1 scope.');
+  lines.push('Check the Phase 1 section in `SKILL.md` for pilot scope.');
   lines.push('Build the lead agent first. **Do not expand to remaining agents until the');
   lines.push('pilot is fully working with real data.** This is a gate, not a suggestion.');
   lines.push('');
@@ -2391,7 +2170,7 @@ echo "--- Optional Files ---"
 check_optional "references/business-context.md"
 check_optional "references/organization-context.md"
 check_optional "references/financial-case.md"
-check_optional "references/implementation-roadmap.md"
+
 check_optional "references/guardrails-and-governance.md"
 check_optional "references/evaluation-criteria.md"
 check_optional "references/platform-connectivity.md"
@@ -2924,7 +2703,7 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
   files.set('references/organization-context.md', buildOrganizationContext(input));
   files.set('references/agent-specifications.md', buildAgentSpecifications(input));
   files.set('references/financial-case.md', buildFinancialCase(input));
-  files.set('references/implementation-roadmap.md', buildImplementationRoadmap(input));
+
   files.set('references/architecture-decisions.md', buildArchitectureDecisions(input));
   files.set('references/guardrails-and-governance.md', buildGuardrailsAndGovernance(input));
   files.set('references/evaluation-criteria.md', buildEvaluationCriteria(input));

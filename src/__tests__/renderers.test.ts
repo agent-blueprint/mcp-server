@@ -107,41 +107,6 @@ const fullInput: SkillRenderInput = {
       ],
     },
   },
-  implementationPlanData: {
-    projectOverview: {
-      projectName: 'Test Automation Project',
-      executiveSummary: 'Deploy AI-powered test automation',
-      scope: 'All testing functions',
-      assumptions: ['Stable API', 'Team availability'],
-    },
-    epics: [
-      {
-        name: 'Infrastructure Setup',
-        phase: 'Phase 1',
-        priority: 'P0',
-        estimatedDuration: '2 weeks',
-        businessValue: 'Foundation for all agents',
-        stories: [
-          { title: 'Setup CI/CD', asA: 'developer', iWant: 'automated pipelines', soThat: 'deploys are reliable' },
-        ],
-        dependencies: ['Cloud access'],
-      },
-    ],
-    resources: {
-      timeline: {
-        totalDuration: '6 months',
-        phases: [
-          { name: 'Phase 1', duration: '2 months', milestones: ['Pilot complete'] },
-        ],
-      },
-      roles: [
-        { role: 'Developer', allocation: 'Full-time', duration: '6 months', skillsRequired: ['TypeScript', 'AI'] },
-      ],
-    },
-    dependencies: [
-      { type: 'Technical', criticality: 'High', description: 'API access required' },
-    ],
-  },
   useCaseData: {
     title: 'Test Automation',
     description: 'Automate manual testing processes',
@@ -187,7 +152,6 @@ describe('renderSkillDirectory', () => {
     expect(paths).toContain('references/organization-context.md');
     expect(paths).toContain('references/agent-specifications.md');
     expect(paths).toContain('references/financial-case.md');
-    expect(paths).toContain('references/implementation-roadmap.md');
     expect(paths).toContain('references/architecture-decisions.md');
     expect(paths).toContain('references/guardrails-and-governance.md');
     expect(paths).toContain('references/evaluation-criteria.md');
@@ -197,7 +161,7 @@ describe('renderSkillDirectory', () => {
     expect(paths).toContain('implementation-state.yaml');
     expect(paths).toContain('AGENTS.md');
     expect(paths).toContain('hooks/claude-code-sync.json');
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(14);
   });
 
   it('SKILL.md starts with YAML frontmatter', () => {
@@ -287,19 +251,6 @@ describe('renderSkillDirectory with full data', () => {
     expect(financial).toContain('$150,000'); // implementation
   });
 
-  it('implementation-roadmap.md includes epics and stories', () => {
-    const files = renderSkillDirectory(fullInput);
-    const roadmap = files.get('references/implementation-roadmap.md')!;
-
-    expect(roadmap).toContain('Test Automation Project');
-    expect(roadmap).toContain('### Infrastructure Setup');
-    expect(roadmap).toContain('Setup CI/CD');
-    expect(roadmap).toContain('## Timeline');
-    expect(roadmap).toContain('6 months');
-    expect(roadmap).toContain('## Required Roles');
-    expect(roadmap).toContain('## Dependencies');
-  });
-
   it('business-context.md includes use case data', () => {
     const files = renderSkillDirectory(fullInput);
     const context = files.get('references/business-context.md')!;
@@ -385,17 +336,6 @@ describe('renderSkillDirectory with missing data', () => {
     expect(financial).toContain('No business case data available');
   });
 
-  it('handles missing implementation plan gracefully', () => {
-    const input: SkillRenderInput = {
-      ...minimalInput,
-      implementationPlanData: undefined,
-    };
-    const files = renderSkillDirectory(input);
-    const roadmap = files.get('references/implementation-roadmap.md')!;
-
-    expect(roadmap).toContain('No implementation plan data available');
-  });
-
   it('handles missing use case gracefully', () => {
     const input: SkillRenderInput = {
       ...minimalInput,
@@ -433,24 +373,7 @@ describe('renderSkillDirectory with missing data', () => {
     };
     // Should not throw
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(15);
-  });
-
-  it('SKILL.md renders phases from implementation plan epics', () => {
-    const input: SkillRenderInput = {
-      ...minimalInput,
-      implementationPlanData: {
-        epics: [
-          { name: 'Agent Setup', phase: 'Pilot', estimatedDuration: '3 weeks' },
-          { name: 'Full Deployment', phase: 'Phase 2', estimatedDuration: '8 weeks' },
-        ],
-      },
-    };
-    const files = renderSkillDirectory(input);
-    const skill = files.get('SKILL.md')!;
-
-    expect(skill).toContain('**Agent Setup** (3 weeks)');
-    expect(skill).toContain('**Full Deployment** (8 weeks)');
+    expect(files.size).toBe(14);
   });
 
   it('evaluation-criteria.md renders with full data', () => {
@@ -1143,7 +1066,7 @@ describe('renderSkillDirectory with no reality data', () => {
       progress: null,
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(14);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
     expect(files.has('RECOMMENDATIONS.md')).toBe(false);
   });
@@ -1151,7 +1074,7 @@ describe('renderSkillDirectory with no reality data', () => {
   it('produces 13 files with undefined implementationState', () => {
     const input: SkillRenderInput = { ...minimalInput };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(14);
   });
 
   it('treats all-not_started state as no data', () => {
@@ -1166,7 +1089,7 @@ describe('renderSkillDirectory with no reality data', () => {
       },
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(14);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
     expect(files.has('RECOMMENDATIONS.md')).toBe(false);
   });
@@ -1177,7 +1100,7 @@ describe('renderSkillDirectory with no reality data', () => {
       progress: { ...sampleProgress, actuals: [], summary: { ...sampleProgress.summary, metricsRecorded: 0, onTrack: 0, minorDeviation: 0, majorDeviation: 0 } },
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(14);
     expect(files.has('RECOMMENDATIONS.md')).toBe(false);
   });
 });
@@ -1188,9 +1111,9 @@ describe('renderSkillDirectory with implementation state only', () => {
     implementationState: sampleImplementationState,
   };
 
-  it('produces 17 files (15 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
+  it('produces 16 files (14 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
     const files = renderSkillDirectory(stateOnlyInput);
-    expect(files.size).toBe(17);
+    expect(files.size).toBe(16);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });
@@ -1287,9 +1210,9 @@ describe('renderSkillDirectory with progress only', () => {
     progress: sampleProgress,
   };
 
-  it('produces 16 files (15 + RECOMMENDATIONS.md, no CURRENT-STATE.md)', () => {
+  it('produces 15 files (14 + RECOMMENDATIONS.md, no CURRENT-STATE.md)', () => {
     const files = renderSkillDirectory(progressOnlyInput);
-    expect(files.size).toBe(16);
+    expect(files.size).toBe(15);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
   });
@@ -1325,9 +1248,9 @@ describe('renderSkillDirectory with full reality data', () => {
     progress: sampleProgress,
   };
 
-  it('produces 17 files', () => {
+  it('produces 16 files', () => {
     const files = renderSkillDirectory(fullRealityInput);
-    expect(files.size).toBe(17);
+    expect(files.size).toBe(16);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });
@@ -1456,7 +1379,6 @@ describe('graceful degradation', () => {
     expect(files.has('SKILL.md')).toBe(true);
     expect(files.has('references/agent-specifications.md')).toBe(true);
     expect(files.has('references/financial-case.md')).toBe(true);
-    expect(files.has('references/implementation-roadmap.md')).toBe(true);
     expect(files.has('GETTING-STARTED.md')).toBe(true);
     expect(files.has('implementation-state.yaml')).toBe(true);
   });
@@ -1510,7 +1432,7 @@ describe('base skill support', () => {
 
   it('increases file count by number of base skill files', () => {
     const files = renderSkillDirectory(baseSkillInput);
-    expect(files.size).toBe(17); // 15 base + 2 base skill files
+    expect(files.size).toBe(16); // 14 base + 2 base skill files
   });
 
   it('SKILL.md body mentions base skill location', () => {

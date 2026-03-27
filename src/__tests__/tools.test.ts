@@ -348,7 +348,7 @@ describe('handleDownloadBlueprint', () => {
 
     expect(manifest.directory).toBe('my-test-blueprint');
     expect(manifest.installHint).toContain('.agent-blueprint/');
-    expect(manifest.files).toHaveLength(15);
+    expect(manifest.files).toHaveLength(14);
 
     const filePaths = manifest.files.map((f: { path: string }) => f.path);
     expect(filePaths).toContain('SKILL.md');
@@ -413,7 +413,7 @@ describe('handleDownloadBlueprint', () => {
 
     expect(result.isError).toBeUndefined();
     const manifest = JSON.parse(result.content[0].text);
-    expect(manifest.files).toHaveLength(15);
+    expect(manifest.files).toHaveLength(14);
   });
 
   it('returns error when blueprint fetch fails', async () => {
