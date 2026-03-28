@@ -79,39 +79,6 @@ export class AgentBlueprintClient {
     return json.data;
   }
 
-  private async patchRequest<T>(path: string, body: unknown, query?: Record<string, string>): Promise<T> {
-    const url = new URL(`${this.config.apiUrl}/api/v1${path}`);
-    if (query) {
-      for (const [k, v] of Object.entries(query)) {
-        url.searchParams.set(k, v);
-      }
-    }
-    const response = await fetch(url.toString(), {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const respBody = await response.json().catch(() => ({ error: response.statusText }));
-      throw new ApiError(
-        response.status,
-        (respBody as Record<string, string>).error || `Request failed: ${response.status}`
-      );
-    }
-
-    const json = (await response.json()) as ApiResponse<T>;
-    if (!json.success) {
-      throw new ApiError(400, 'API returned unsuccessful response');
-    }
-
-    return json.data;
-  }
-
   private orgQuery(customerOrgId?: string): Record<string, string> | undefined {
     return customerOrgId ? { customerOrgId } : undefined;
   }
@@ -198,78 +165,6 @@ export class AgentBlueprintClient {
     );
   }
 
-  // ─── Registry write methods ──────────────────────────────────────
-
-  async updateBlueprint(
-    blueprintId: string,
-    sections: Record<string, unknown>,
-    customerOrgId?: string,
-  ): Promise<ArtifactUpdateResponse> {
-    return this.patchRequest<ArtifactUpdateResponse>(
-      `/blueprints/${encodeURIComponent(blueprintId)}`,
-      { sections },
-      this.orgQuery(customerOrgId),
-    );
-  }
-
-  async updateBusinessCase(
-    blueprintId: string,
-    sections: Record<string, unknown>,
-    customerOrgId?: string,
-  ): Promise<ArtifactUpdateResponse> {
-    return this.patchRequest<ArtifactUpdateResponse>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/business-case`,
-      { sections },
-      this.orgQuery(customerOrgId),
-    );
-  }
-
-  async updateImplementationPlan(
-    blueprintId: string,
-    sections: Record<string, unknown>,
-    customerOrgId?: string,
-  ): Promise<ArtifactUpdateResponse> {
-    return this.patchRequest<ArtifactUpdateResponse>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/implementation-plan`,
-      { sections },
-      this.orgQuery(customerOrgId),
-    );
-  }
-
-  async updateUseCase(
-    blueprintId: string,
-    sections: Record<string, unknown>,
-    customerOrgId?: string,
-  ): Promise<ArtifactUpdateResponse> {
-    return this.patchRequest<ArtifactUpdateResponse>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/use-case`,
-      { sections },
-      this.orgQuery(customerOrgId),
-    );
-  }
-
-  async updateBusinessProfile(
-    fields: Record<string, unknown>,
-    customerOrgId?: string,
-  ): Promise<ArtifactUpdateResponse> {
-    return this.patchRequest<ArtifactUpdateResponse>(
-      '/business-profile',
-      { fields },
-      this.orgQuery(customerOrgId),
-    );
-  }
-
-  async recalculateFinancials(
-    blueprintId: string,
-    customerOrgId?: string,
-  ): Promise<Record<string, unknown>> {
-    return this.postRequest<Record<string, unknown>>(
-      `/blueprints/${encodeURIComponent(blueprintId)}/business-case/recalculate`,
-      {},
-      this.orgQuery(customerOrgId),
-    );
-  }
-
   async getVendorGuide(platform: string): Promise<VendorGuideResponse | null> {
     try {
       const url = new URL(`${this.config.apiUrl}/api/vendor-guide/${encodeURIComponent(platform)}`);
@@ -337,7 +232,6 @@ export interface BlueprintSummary {
   agentCount: number;
   lifecycleStatus: string;
   useCaseId: string | null;
-  staleSince: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -347,7 +241,6 @@ export interface BlueprintDetail {
   version: number;
   lifecycleStatus: string;
   useCaseId: string | null;
-  staleSince: string | null;
   createdAt: string;
   updatedAt: string;
   data: Record<string, unknown>;
@@ -357,7 +250,6 @@ export interface ArtifactResponse {
   id: string;
   version: number;
   blueprintId: string;
-  staleSince: string | null;
   createdAt: string;
   updatedAt: string;
   data: Record<string, unknown>;
@@ -487,15 +379,3 @@ export interface ReportMetricsResponse {
 
 // Re-exported from types.ts for backward compat
 export type { ProgressResponse } from './types.js';
-
-// ─── Registry update types ───────────────────────────────────────
-
-export interface ArtifactUpdateResponse {
-  id: string;
-  version?: number;
-  updatedAt: string;
-  staleSince: string | null;
-  versionSnapshot?: number | null;
-  downstreamStale: string[];
-  message?: string;
-}
