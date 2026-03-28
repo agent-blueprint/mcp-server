@@ -116,6 +116,10 @@ export class AgentBlueprintClient {
     return customerOrgId ? { customerOrgId } : undefined;
   }
 
+  async getIdentity(): Promise<UserIdentity> {
+    return this.request<UserIdentity>('/me');
+  }
+
   async getBusinessProfile(customerOrgId?: string): Promise<BusinessProfile> {
     return this.request<BusinessProfile>('/business-profile', this.orgQuery(customerOrgId));
   }
@@ -328,6 +332,15 @@ export class AgentBlueprintClient {
 }
 
 // ─── Response types ────────────────────────────────────────────────
+
+export interface UserIdentity {
+  email: string | null;
+  organizationId: string;
+  organizationName: string | null;
+  organizationSlug: string | null;
+  isPartnerMember: boolean;
+  partnerId: string | null;
+}
 
 export interface BlueprintSummary {
   id: string;

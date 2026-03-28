@@ -79,12 +79,19 @@ async function cmdLogin(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  // Validate by making a test call
+  // Validate by making a test call and showing identity
   console.error('Validating token...');
   try {
     const config = loadConfig(token);
     const client = new AgentBlueprintClient(config);
-    await client.listBlueprints();
+    const identity = await client.getIdentity();
+    const label = identity.email
+      ? `${identity.email} (${identity.organizationName ?? identity.organizationId})`
+      : identity.organizationName ?? identity.organizationId;
+    console.error(`Authenticated as: ${label}`);
+    if (identity.isPartnerMember) {
+      console.error('Partner account: use --org <id> to access customer organizations.');
+    }
   } catch (err) {
     console.error(`Error: Token validation failed. ${formatError(err)}`);
     process.exit(1);
@@ -189,14 +196,34 @@ async function cmdGet(args: string[]): Promise<void> {
 async function cmdDownload(args: string[]): Promise<void> {
   const token = findFlag(args, '--token');
   let config: Config;
+  let usedStoredToken = false;
   try {
     config = loadConfig(token);
+    if (!token && !process.env.AGENT_BLUEPRINT_API_KEY) {
+      usedStoredToken = true;
+    }
   } catch {
     // No token found — auto-trigger login
     console.error('No API key found. Starting login...\n');
     await cmdLogin(args.filter(a => a !== '--token'));
     config = loadConfig();
   }
+  // Show identity when using stored credentials so users catch stale tokens
+  if (usedStoredToken) {
+    try {
+      const client = new AgentBlueprintClient(config);
+      const identity = await client.getIdentity();
+      const label = identity.email
+        ? `${identity.email} (${identity.organizationName ?? identity.organizationId})`
+        : identity.organizationName ?? identity.organizationId;
+      console.error(`Using stored credentials: ${label}`);
+      console.error('Run `agentblueprint login` to switch accounts.\n');
+    } catch {
+      console.error('Using stored credentials (could not verify identity).');
+      console.error('Run `agentblueprint login` to re-authenticate.\n');
+    }
+  }
+
   const downloadArgs = parseDownloadArgs(args.filter(a => a !== '--token' && args[args.indexOf(a) - 1] !== '--token'));
   await runDownload(config, downloadArgs);
 }
