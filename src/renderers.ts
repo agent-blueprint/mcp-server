@@ -12,6 +12,13 @@ export interface SkillFile {
   content: string;
 }
 
+export interface StalenessInfo {
+  blueprintStaleSince?: string | null;
+  businessCaseStaleSince?: string | null;
+  implementationPlanStaleSince?: string | null;
+  useCaseStaleSince?: string | null;
+}
+
 export interface SkillRenderInput {
   blueprintTitle: string;
   blueprintId: string;
@@ -27,11 +34,36 @@ export interface SkillRenderInput {
   baseSkill?: { files: SkillFile[] };
   implementationState?: ImplementationStateResponse | null;
   progress?: ProgressResponse | null;
+  staleness?: StalenessInfo;
 }
 
 // =============================================================================
 // HELPERS
 // =============================================================================
+
+function buildStalenessWarnings(input: SkillRenderInput): string | null {
+  const s = input.staleness;
+  if (!s) return null;
+
+  const warnings: string[] = [];
+  if (s.blueprintStaleSince) warnings.push('- **Blueprint** is stale (upstream artifact was updated). Re-download for latest data.');
+  if (s.businessCaseStaleSince) warnings.push('- **Business case** is stale. Run `recalculate_financials` to refresh projections.');
+  if (s.implementationPlanStaleSince) warnings.push('- **Implementation plan** is stale (blueprint was updated after plan generation).');
+  if (s.useCaseStaleSince) warnings.push('- **Use case** is stale (business profile was updated).');
+
+  if (warnings.length === 0) return null;
+
+  return [
+    '## Staleness warnings',
+    '',
+    'Some artifacts in this blueprint are out of date:',
+    '',
+    ...warnings,
+    '',
+    'Stale artifacts may contain outdated information. Consider updating them',
+    'via MCP write tools before proceeding with implementation.',
+  ].join('\n');
+}
 
 export function slugify(input: string): string {
   const stripped = input.replace(/^blueprint\s+for\s+/i, '');
@@ -1741,6 +1773,13 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('  you have not verified against the actual platform instance.');
   lines.push('');
 
+  // Staleness warnings
+  const staleWarnings = buildStalenessWarnings(input);
+  if (staleWarnings) {
+    lines.push(staleWarnings);
+    lines.push('');
+  }
+
   // Step 1
   lines.push('## Step 1: Understand the architecture');
   lines.push('');
@@ -2472,12 +2511,44 @@ function buildAgentsMd(input: SkillRenderInput): string {
   lines.push('Metric reporting is MCP-only. There is no CLI equivalent yet.');
   lines.push('');
 
+  lines.push('## When to update the blueprint (registry)');
+  lines.push('');
+  lines.push('When the implementation diverges from the original design, update the');
+  lines.push('blueprint so it always reflects what was actually built:');
+  lines.push('- After changing the agent team structure (added/removed/renamed agents)');
+  lines.push('- After changing the agentic pattern (e.g., single orchestrator to multi-workflow)');
+  lines.push('- After discovering the implementation needs different phases or dependencies');
+  lines.push('- After adapting success criteria based on what is measurable');
+  lines.push('');
+
+  lines.push('## How to update the blueprint');
+  lines.push('');
+  lines.push('**MCP tools** (preferred):');
+  lines.push('');
+  lines.push('    Use the update_blueprint tool with:');
+  lines.push(`      blueprintId: "${bpId}"`);
+  lines.push('      sections: { enhancedDigitalTeam: [...], agenticPattern: "Multi-Agent" }');
+  lines.push('');
+  lines.push('    Use the update_business_case tool to update narrative sections.');
+  lines.push('    Use the update_implementation_plan tool to update epics and agent specs.');
+  lines.push('    Use the update_use_case tool to update pain points or success metrics.');
+  lines.push('');
+  lines.push('After updating the blueprint, run recalculate_financials to refresh ROI:');
+  lines.push('');
+  lines.push('    Use the recalculate_financials tool with:');
+  lines.push(`      blueprintId: "${bpId}"`);
+  lines.push('');
+  lines.push('Each update creates a version snapshot (the original recommendation is v1).');
+  lines.push('Downstream artifacts are marked stale and should be reviewed or recalculated.');
+  lines.push('');
+
   lines.push('## Documenting deviations');
   lines.push('');
   lines.push('When you deviate from the spec (different tool, different approach, skipped an agent):');
   lines.push('1. Update the agent\'s `deviations` array in implementation-state.yaml');
   lines.push('2. Include a brief reason (e.g., "Used Flow Designer instead of Workflow -- better parallel support")');
   lines.push('3. Sync so Agent Blueprint can track spec drift');
+  lines.push('4. Consider updating the blueprint itself if the deviation is structural');
   lines.push('');
 
   lines.push('## Why this matters');

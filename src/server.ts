@@ -18,6 +18,12 @@ import { handleDownloadBlueprint } from './tools/download-blueprint.js';
 import { handleSyncImplementationState } from './tools/sync-implementation-state.js';
 import { handleReportMetric } from './tools/report-metric.js';
 import { handleGetProgress } from './tools/get-progress.js';
+import { handleUpdateBlueprint } from './tools/update-blueprint.js';
+import { handleUpdateBusinessCase } from './tools/update-business-case.js';
+import { handleUpdateImplementationPlan } from './tools/update-implementation-plan.js';
+import { handleUpdateUseCase } from './tools/update-use-case.js';
+import { handleUpdateBusinessProfile } from './tools/update-business-profile.js';
+import { handleRecalculateFinancials } from './tools/recalculate-financials.js';
 
 export function createServer(config: Config): McpServer {
   const client = new AgentBlueprintClient(config);
@@ -165,6 +171,94 @@ export function createServer(config: Config): McpServer {
       customerOrgId: customerOrgParam,
     },
     async (args) => handleGetProgress(client, {
+      blueprintId: args.blueprintId,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  // ─── Registry write tools ────────────────────────────────────────────
+
+  server.tool(
+    'update_blueprint',
+    'Update blueprint sections with actual implementation data. Sends full top-level sections that are shallow-merged into the existing blueprint. Creates a version snapshot before mutation and propagates staleness to business case and implementation plan. Use this when the implementation diverges from the original recommendation.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Valid keys: enhancedDigitalTeam, phases, executiveSummary, executiveSummaryDetails, platformRecommendation, agenticPattern, riskAssessment, successCriteria, feasibilityIndicators, laborAnalysis, title, blueprintTitle, roiBaseline, howItWorks, teams, kpis, digitalTeam, implementation, dataProvenance, architectureRationale, integrationGaps, customTables'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleUpdateBlueprint(client, {
+      blueprintId: args.blueprintId,
+      sections: args.sections,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'update_business_case',
+    'Update business case sections. Shallow-merges provided sections into the existing business case data. Propagates staleness to implementation plan. After updating, consider calling recalculate_financials to refresh ROI projections.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Valid keys: executiveSummary, businessContext, objectives, proposedSolution, benefits, risks, recommendation'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleUpdateBusinessCase(client, {
+      blueprintId: args.blueprintId,
+      sections: args.sections,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'update_implementation_plan',
+    'Update implementation plan sections. Shallow-merges provided sections into the existing plan. This is a terminal artifact with no downstream staleness propagation.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Valid keys: projectOverview, epics, dependencies, resources, risks, agentSpecifications'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleUpdateImplementationPlan(client, {
+      blueprintId: args.blueprintId,
+      sections: args.sections,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'update_use_case',
+    'Update use case fields for a blueprint. Updates the use case linked to the specified blueprint. Propagates staleness to the blueprint.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      sections: z.record(z.string(), z.unknown()).describe('Fields to update. Valid keys: title, description, businessChallenge, description5Ws, currentPainPoints, desiredBusinessOutcomes, processDocumentation, transformationStory, typedSuccessMetrics, organizationalConstraints, affectedDepartments'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleUpdateUseCase(client, {
+      blueprintId: args.blueprintId,
+      sections: args.sections,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'update_business_profile',
+    'Update business profile fields. Updates company details, technology profile, strategic initiatives, etc. Propagates staleness to use cases. Also syncs company name to the organization record.',
+    {
+      fields: z.record(z.string(), z.unknown()).describe('Fields to update. Valid keys: companyName, industry, size, revenue, currency, description, companyWebsite, technology, capabilities, operations, constraints, strategicInitiatives'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleUpdateBusinessProfile(client, {
+      fields: args.fields,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'recalculate_financials',
+    'Recalculate business case financials from current blueprint and profile data. Use this after updating the blueprint to refresh ROI projections, labor savings, and payback period. Clears staleness on the business case.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleRecalculateFinancials(client, {
       blueprintId: args.blueprintId,
       customerOrgId: args.customerOrgId,
     })
