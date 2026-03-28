@@ -83,12 +83,6 @@ export async function fetchAndRenderBlueprint(
     baseSkill: baseSkill ?? undefined,
     implementationState,
     progress,
-    staleness: {
-      blueprintStaleSince: blueprint.staleSince ?? null,
-      businessCaseStaleSince: businessCase?.staleSince ?? null,
-      implementationPlanStaleSince: null, // fetched separately if needed
-      useCaseStaleSince: (useCase as Record<string, unknown> | null)?.staleSince as string | null ?? null,
-    },
   };
 
   const files = renderSkillDirectory(input);
