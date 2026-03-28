@@ -121,9 +121,7 @@ export async function setupServiceNowMcp(): Promise<void> {
       },
     }, null, 2));
     console.error('');
-    console.error('For Claude Code: add to .claude/settings.json or ~/.claude/settings.json');
-    console.error('For Cursor: add to .cursor/mcp.json');
-    console.error('Then restart your coding agent to connect.');
+    console.error('Add to your coding agent\'s MCP config and restart to connect.');
   } finally {
     rl.close();
   }
