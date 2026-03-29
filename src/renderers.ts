@@ -2201,6 +2201,10 @@ function buildImplementationState(input: SkillRenderInput): string {
   lines.push('  name: ""           # e.g., "ServiceNow", "Salesforce", "Custom Node.js"');
   lines.push('  version: ""        # e.g., "Australia", "Spring \'26"');
   lines.push('  environment: ""    # e.g., "dev", "staging", "production"');
+  lines.push('  # Add any instance-specific details (extra fields are preserved):');
+  lines.push('  # instance_url: "https://dev12345.service-now.com"');
+  lines.push('  # instance_id: "dev12345"');
+  lines.push('  # scope: "x_abc_my_app"');
   lines.push('');
 
   // Agents
@@ -2221,13 +2225,26 @@ function buildImplementationState(input: SkillRenderInput): string {
       if (i === 0) {
         lines.push('    status: not_started  # not_started | in_progress | implemented | modified | skipped');
         lines.push('    platform_artifact: ""  # sys_id, function name, service URL, etc.');
+        lines.push('    deviations: []');
+        lines.push('    integrations_connected: []');
+        lines.push('    notes: ""');
+        lines.push('    # Extra fields are preserved. Examples of what agents typically add:');
+        lines.push('    # tools:');
+        lines.push('    #   - name: "lookup_employee"');
+        lines.push('    #     type: "REST API"');
+        lines.push('    #     table: "sys_user"');
+        lines.push('    #   - name: "create_ticket"');
+        lines.push('    #     type: "Flow Action"');
+        lines.push('    #     flow: "Create Incident"');
+        lines.push('    # topic: "HR Service Delivery"');
+        lines.push('    # sys_id: "abc123def456"');
       } else {
         lines.push('    status: not_started');
         lines.push('    platform_artifact: ""');
+        lines.push('    deviations: []');
+        lines.push('    integrations_connected: []');
+        lines.push('    notes: ""');
       }
-      lines.push('    deviations: []');
-      lines.push('    integrations_connected: []');
-      lines.push('    notes: ""');
       if (i < team.length - 1) lines.push('');
     }
   }
@@ -2236,8 +2253,12 @@ function buildImplementationState(input: SkillRenderInput): string {
   // Architecture
   lines.push('architecture:');
   lines.push(`  pattern: ""        # actual pattern used (spec recommends: ${pattern})`);
-  lines.push('  deviations: []');
+  lines.push('  deviations: []     # e.g., ["Switched from multi-agent to single orchestrator"]');
   lines.push('  additional_components: []');
+  lines.push('  # Add any implementation-specific details:');
+  lines.push('  # update_set: "AI Agent Deployment"');
+  lines.push('  # app_scope: "x_abc_ai_agents"');
+  lines.push('  # team_sys_id: "abc123"');
   lines.push('');
 
   // Metrics -- collect and deduplicate from all agents
