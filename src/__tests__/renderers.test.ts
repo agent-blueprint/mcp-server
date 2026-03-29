@@ -1099,10 +1099,11 @@ describe('renderSkillDirectory with implementation state only', () => {
     implementationState: sampleImplementationState,
   };
 
-  it('produces 15 files (14 + CURRENT-STATE.md)', () => {
+  it('produces 16 files (14 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
     const files = renderSkillDirectory(stateOnlyInput);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(16);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });
 
   it('CURRENT-STATE.md contains agent status table', () => {
@@ -1218,10 +1219,11 @@ describe('renderSkillDirectory with full reality data', () => {
     progress: sampleProgress,
   };
 
-  it('produces 15 files', () => {
+  it('produces 16 files', () => {
     const files = renderSkillDirectory(fullRealityInput);
-    expect(files.size).toBe(15);
+    expect(files.size).toBe(16);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
+    expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });
 
   it('CURRENT-STATE.md includes performance table', () => {

@@ -5,7 +5,7 @@
 // into a Map<string, string> of { relativePath → fileContent }
 // =============================================================================
 
-import type { ImplementationStateResponse, ProgressResponse, StrategicRecommendationsResponse } from './types.js';
+import type { ImplementationStateResponse, ProgressResponse } from './types.js';
 
 export interface SkillFile {
   path: string;
@@ -34,7 +34,6 @@ export interface SkillRenderInput {
   baseSkill?: { files: SkillFile[] };
   implementationState?: ImplementationStateResponse | null;
   progress?: ProgressResponse | null;
-  recommendations?: StrategicRecommendationsResponse | null;
   staleness?: StalenessInfo;
 }
 
@@ -2629,79 +2628,148 @@ function buildClaudeCodeHooksConfig(input: SkillRenderInput): string {
 }
 
 // =============================================================================
-// STRATEGIC RECOMMENDATIONS (Phase 5 — Living Blueprint)
+// NEXT ACTIONS (deterministic — Living Blueprint)
 // =============================================================================
 
+/**
+ * Deterministic recommendations derived from implementation state + progress data.
+ * Facts and priorities only: which agents to implement next, which metrics deviate,
+ * which deviations to review. No LLM, no how-to instructions.
+ *
+ * LLM-generated strategic advice lives in the Reality Dashboard (web UI) and the
+ * get_recommendations MCP tool, not here.
+ */
 function buildRecommendations(input: SkillRenderInput): string {
-  const recs = input.recommendations!.recommendations;
   const lines: string[] = [];
+  const state = input.implementationState!;
+  const sd = rec(state.stateData);
+  const stateAgents = arr(sd.agents);
+  const bp = rec(input.blueprintData);
+  const team = arr(bp.enhancedDigitalTeam);
+  const phases = arr(bp.phases);
 
-  lines.push('# Strategic Recommendations');
+  const syncDate = state.syncedAt ? state.syncedAt.split('T')[0] : 'unknown';
+
+  // Build status lookup from implementation state
+  const statusByName = new Map<string, string>();
+  for (const sa of stateAgents) {
+    const a = rec(sa);
+    statusByName.set(str(a.name).toLowerCase().trim(), str(a.status) || 'not_started');
+  }
+
+  // Count implemented
+  let implementedCount = 0;
+  let inProgressCount = 0;
+  for (const status of statusByName.values()) {
+    if (status === 'implemented' || status === 'modified') implementedCount++;
+    if (status === 'in_progress') inProgressCount++;
+  }
+  const totalAgents = stateAgents.length || team.length;
+
+  lines.push('# Next Actions');
   lines.push('');
-  lines.push(`> Generated: ${recs.generatedAt}`);
-  lines.push('');
-  lines.push(recs.summary);
+  lines.push(`${implementedCount} of ${totalAgents} agents implemented. Last synced: ${syncDate}.`);
   lines.push('');
 
-  // Group by priority
-  const priorityOrder = ['critical', 'high', 'medium', 'low'] as const;
-  const priorityLabels: Record<string, string> = {
-    critical: 'Critical',
-    high: 'High Priority',
-    medium: 'Medium Priority',
-    low: 'Lower Priority',
-  };
-
-  for (const priority of priorityOrder) {
-    const group = recs.recommendations.filter(r => r.priority === priority);
-    if (group.length === 0) continue;
-
-    lines.push(`## ${priorityLabels[priority]}`);
-    lines.push('');
-
-    for (const rec of group) {
-      lines.push(`### ${rec.id}: ${rec.title}`);
-      lines.push('');
-      lines.push(`**Category:** ${rec.category.replace(/_/g, ' ')}`);
-      lines.push(`**Confidence:** ${rec.confidence}`);
-      lines.push('');
-      lines.push(`**What:** ${rec.what}`);
-      lines.push('');
-      lines.push(`**Why:** ${rec.why}`);
-      lines.push('');
-      lines.push(`**Expected Impact:** ${rec.expectedImpact}`);
-
-      if (rec.financialImpact) {
-        const fi = rec.financialImpact;
-        const value = fi.estimatedValue ? ` (${fi.estimatedValue})` : '';
-        lines.push('');
-        lines.push(`**Financial Impact:** ${fi.type.replace(/_/g, ' ')}${value} -- ${fi.basis}`);
-      }
-
-      if (rec.relatedAgents?.length) {
-        lines.push('');
-        lines.push(`**Related Agents:** ${rec.relatedAgents.join(', ')}`);
-      }
-
-      if (rec.relatedMetrics?.length) {
-        lines.push('');
-        lines.push(`**Related Metrics:** ${rec.relatedMetrics.join(', ')}`);
-      }
-
-      lines.push('');
+  // --- Agents to implement (ordered by phase, then team position) ---
+  // Build phase ordering: which agents belong to which phase
+  const agentPhaseMap = new Map<string, string>();
+  const phaseOrder: string[] = [];
+  for (const phase of phases) {
+    const p = rec(phase);
+    const phaseName = str(p.name);
+    if (phaseName) phaseOrder.push(phaseName);
+    const introduced = arr(p.agentsIntroduced);
+    for (const ai of introduced) {
+      const a = rec(ai);
+      const refId = str(a.agentRefId);
+      if (refId) agentPhaseMap.set(refId, phaseName);
     }
   }
 
-  // Context snapshot footer
-  const ctx = recs.contextSnapshot;
-  lines.push('---');
-  lines.push('');
-  lines.push(`Implementation: ${ctx.implementationProgress}`);
-  lines.push(`Performance: ${ctx.performanceStatus}`);
-  if (ctx.daysInImplementation > 0) {
-    lines.push(`Days in implementation: ${ctx.daysInImplementation}`);
+  // Find agents not yet implemented, preserving team order
+  const remaining: Array<{ name: string; role: string; phase: string; status: string; deps: string[] }> = [];
+  for (const member of team) {
+    const agent = rec(member);
+    const name = str(agent.name);
+    const id = str(agent.id);
+    const status = statusByName.get(name.toLowerCase().trim()) || 'not_started';
+    if (status === 'implemented' || status === 'modified' || status === 'skipped') continue;
+
+    const role = str(agent.role) || str(agent.agentRole) || '';
+    const phase = agentPhaseMap.get(id) || '';
+    const deps = arr(agent.dependencies).map((d: unknown) => str(d)).filter(Boolean);
+
+    remaining.push({ name, role, phase, status, deps });
   }
-  lines.push('');
+
+  // Sort: in_progress first, then by phase order, then team position (already in order)
+  remaining.sort((a, b) => {
+    if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
+    if (b.status === 'in_progress' && a.status !== 'in_progress') return 1;
+    const aIdx = a.phase ? phaseOrder.indexOf(a.phase) : 999;
+    const bIdx = b.phase ? phaseOrder.indexOf(b.phase) : 999;
+    return aIdx - bIdx;
+  });
+
+  if (remaining.length > 0) {
+    lines.push('## Agents to Implement');
+    lines.push('');
+    lines.push('| # | Agent | Role | Phase | Status | Dependencies |');
+    lines.push('|---|-------|------|-------|--------|--------------|');
+    for (let i = 0; i < remaining.length; i++) {
+      const r = remaining[i];
+      const depsStr = r.deps.length > 0 ? r.deps.join(', ') : '-';
+      lines.push(`| ${i + 1} | ${r.name} | ${r.role} | ${r.phase || '-'} | ${r.status} | ${depsStr} |`);
+    }
+    lines.push('');
+  }
+
+  // --- Metric deviations ---
+  if (hasProgressData(input)) {
+    const progress = input.progress!;
+    const deviating = progress.actuals.filter(a => a.status !== 'on_track');
+
+    if (deviating.length > 0) {
+      lines.push('## Metric Deviations');
+      lines.push('');
+      lines.push('| Metric | Target | Actual | Status | Deviation |');
+      lines.push('|--------|--------|--------|--------|-----------|');
+      for (const m of deviating) {
+        const devPct = m.deviationPercent != null ? `${m.deviationPercent > 0 ? '+' : ''}${m.deviationPercent}%` : '-';
+        lines.push(`| ${m.metricName} | ${m.predictedValue} | ${m.actualValue} | ${m.status} | ${devPct} |`);
+      }
+      lines.push('');
+    }
+
+    const s = progress.summary;
+    lines.push(`Metrics: ${s.onTrack} on track, ${s.minorDeviation} minor deviation, ${s.majorDeviation} major deviation.`);
+    lines.push('');
+  }
+
+  // --- Deviations from plan ---
+  const archDevs = arr(rec(sd.architecture).deviations).filter((d: unknown) => str(d));
+  const agentsWithDevs = stateAgents
+    .map((a: unknown) => rec(a))
+    .filter(a => arr(a.deviations).length > 0);
+
+  if (archDevs.length > 0 || agentsWithDevs.length > 0) {
+    lines.push('## Deviations from Plan');
+    lines.push('');
+
+    if (archDevs.length > 0) {
+      lines.push('**Architecture:**');
+      for (const d of archDevs) lines.push(`- ${str(d)}`);
+      lines.push('');
+    }
+
+    for (const a of agentsWithDevs) {
+      const devs = arr(a.deviations);
+      lines.push(`**${str(a.name)}:**`);
+      for (const d of devs) lines.push(`- ${str(d)}`);
+      lines.push('');
+    }
+  }
 
   return lines.join('\n');
 }
@@ -2779,8 +2847,8 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
     files.set('CURRENT-STATE.md', buildCurrentState(input));
   }
 
-  // Strategic recommendations (return visits -- Living Blueprint Phase 5)
-  if (hasImplementationData(input) && input.recommendations?.recommendations) {
+  // Next actions (return visits -- deterministic from implementation state + progress)
+  if (hasImplementationData(input)) {
     files.set('RECOMMENDATIONS.md', buildRecommendations(input));
   }
 

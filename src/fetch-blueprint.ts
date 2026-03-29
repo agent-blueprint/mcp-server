@@ -37,10 +37,9 @@ export async function fetchAndRenderBlueprint(
   ]);
 
   // Fetch reality data for return visits
-  const [implementationState, progress, recommendations] = await Promise.all([
+  const [implementationState, progress] = await Promise.all([
     client.getImplementationState(blueprintId, orgId).catch(() => null),
     client.getProgress(blueprintId, orgId).catch(() => null),
-    client.getRecommendations(blueprintId, orgId).catch(() => null),
   ]);
 
   // Extract title
@@ -84,7 +83,6 @@ export async function fetchAndRenderBlueprint(
     baseSkill: baseSkill ?? undefined,
     implementationState,
     progress,
-    recommendations,
     staleness: {
       blueprintStaleSince: blueprint.staleSince ?? null,
       businessCaseStaleSince: businessCase?.staleSince ?? null,
