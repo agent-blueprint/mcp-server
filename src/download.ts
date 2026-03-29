@@ -5,6 +5,7 @@ import { AgentBlueprintClient } from './client.js';
 import type { Config } from './config.js';
 import { getNextActionDirective } from './directives.js';
 import { fetchAndRenderBlueprint } from './fetch-blueprint.js';
+import type { McpSetupCredentials } from './mcp-setup.js';
 
 export interface DownloadArgs {
   blueprintId?: string;
@@ -13,6 +14,9 @@ export interface DownloadArgs {
   customerOrgId?: string;
   platform?: string;
   noMcp?: boolean;
+  snInstance?: string;
+  snUser?: string;
+  snPass?: string;
 }
 
 export function parseDownloadArgs(args: string[]): DownloadArgs {
@@ -42,6 +46,15 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
       case '--no-mcp':
         result.noMcp = true;
         break;
+      case '--sn-instance':
+        result.snInstance = args[++i];
+        break;
+      case '--sn-user':
+        result.snUser = args[++i];
+        break;
+      case '--sn-pass':
+        result.snPass = args[++i];
+        break;
       default:
         // Positional arg: treat as blueprint ID if it doesn't start with --
         if (!arg.startsWith('--') && !result.blueprintId) {
@@ -67,7 +80,11 @@ export async function runDownload(config: Config, args: DownloadArgs): Promise<v
     process.exit(1);
   }
 
-  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId, args.platform, args.noMcp);
+  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId, args.platform, args.noMcp, {
+    instance: args.snInstance,
+    username: args.snUser,
+    password: args.snPass,
+  });
 }
 
 async function listBlueprints(client: AgentBlueprintClient, customerOrgId?: string): Promise<void> {
@@ -121,7 +138,8 @@ async function downloadBlueprint(
   baseDir: string,
   customerOrgId?: string,
   platform?: string,
-  noMcp?: boolean
+  noMcp?: boolean,
+  snCredentials?: McpSetupCredentials
 ): Promise<void> {
   blueprintId = await resolveId(client, blueprintId, customerOrgId);
   console.error(`Fetching blueprint ${blueprintId}...`);
@@ -181,6 +199,6 @@ async function downloadBlueprint(
 
   if (platform === 'servicenow' && !noMcp) {
     const { setupServiceNowMcp } = await import('./mcp-setup.js');
-    await setupServiceNowMcp();
+    await setupServiceNowMcp(snCredentials);
   }
 }

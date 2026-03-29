@@ -153,3 +153,109 @@ describe('setupServiceNowMcp', () => {
     expect(vi.mocked(writeFile)).not.toHaveBeenCalled();
   });
 });
+
+describe('setupServiceNowMcp — non-interactive', () => {
+  it('skips prompts when all credentials provided via options', async () => {
+    const mockedExecFile = vi.mocked(execFile);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/local/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/local/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/local/lib/node_modules\n', stderr: '' } as never);
+
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined as never);
+
+    const { setupServiceNowMcp } = await import('../mcp-setup.js');
+    await setupServiceNowMcp({ instance: 'myinst', username: 'svcuser', password: 'secret' });
+
+    // readline should not have been used
+    expect(vi.mocked(createInterface)).not.toHaveBeenCalled();
+
+    // Config should be written with the provided credentials
+    const configCall = vi.mocked(writeFile).mock.calls.find(
+      (call) => String(call[0]).endsWith('config/servicenow-instances.json')
+    );
+    expect(configCall).toBeDefined();
+    const configJson = JSON.parse(configCall![1] as string);
+    expect(configJson.instances[0].name).toBe('myinst');
+    expect(configJson.instances[0].username).toBe('svcuser');
+    expect(configJson.instances[0].password).toBe('secret');
+  });
+
+  it('defaults username to admin when only instance and password provided', async () => {
+    const mockedExecFile = vi.mocked(execFile);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/lib/node_modules\n', stderr: '' } as never);
+
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined as never);
+
+    const { setupServiceNowMcp } = await import('../mcp-setup.js');
+    await setupServiceNowMcp({ instance: 'dev99', password: 'pass123' });
+
+    expect(vi.mocked(createInterface)).not.toHaveBeenCalled();
+
+    const configCall = vi.mocked(writeFile).mock.calls.find(
+      (call) => String(call[0]).endsWith('config/servicenow-instances.json')
+    );
+    const configJson = JSON.parse(configCall![1] as string);
+    expect(configJson.instances[0].username).toBe('admin');
+  });
+
+  it('reads credentials from env vars', async () => {
+    process.env.SN_INSTANCE = 'envinstance';
+    process.env.SN_USER = 'envuser';
+    process.env.SN_PASS = 'envpass';
+
+    const mockedExecFile = vi.mocked(execFile);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/lib/node_modules\n', stderr: '' } as never);
+
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined as never);
+
+    const { setupServiceNowMcp } = await import('../mcp-setup.js');
+    await setupServiceNowMcp();
+
+    expect(vi.mocked(createInterface)).not.toHaveBeenCalled();
+
+    const configCall = vi.mocked(writeFile).mock.calls.find(
+      (call) => String(call[0]).endsWith('config/servicenow-instances.json')
+    );
+    const configJson = JSON.parse(configCall![1] as string);
+    expect(configJson.instances[0].name).toBe('envinstance');
+    expect(configJson.instances[0].username).toBe('envuser');
+    expect(configJson.instances[0].password).toBe('envpass');
+
+    delete process.env.SN_INSTANCE;
+    delete process.env.SN_USER;
+    delete process.env.SN_PASS;
+  });
+
+  it('CLI flags take priority over env vars', async () => {
+    process.env.SN_INSTANCE = 'envinstance';
+    process.env.SN_PASS = 'envpass';
+
+    const mockedExecFile = vi.mocked(execFile);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/bin/servicenow-mcp-server\n', stderr: '' } as never);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/lib/node_modules\n', stderr: '' } as never);
+
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined as never);
+
+    const { setupServiceNowMcp } = await import('../mcp-setup.js');
+    await setupServiceNowMcp({ instance: 'flaginstance', password: 'flagpass' });
+
+    const configCall = vi.mocked(writeFile).mock.calls.find(
+      (call) => String(call[0]).endsWith('config/servicenow-instances.json')
+    );
+    const configJson = JSON.parse(configCall![1] as string);
+    expect(configJson.instances[0].name).toBe('flaginstance');
+    expect(configJson.instances[0].password).toBe('flagpass');
+
+    delete process.env.SN_INSTANCE;
+    delete process.env.SN_PASS;
+  });
+});

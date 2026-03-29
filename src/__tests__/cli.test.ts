@@ -54,6 +54,23 @@ describe('parseDownloadArgs', () => {
     const result = parseDownloadArgs(['abc-123']);
     expect(result.noMcp).toBeFalsy();
   });
+
+  it('parses --sn-instance, --sn-user, --sn-pass flags', () => {
+    const result = parseDownloadArgs([
+      'abc-123', '--platform', 'servicenow',
+      '--sn-instance', 'dev99', '--sn-user', 'admin', '--sn-pass', 'secret',
+    ]);
+    expect(result.snInstance).toBe('dev99');
+    expect(result.snUser).toBe('admin');
+    expect(result.snPass).toBe('secret');
+  });
+
+  it('sn credential flags default to undefined', () => {
+    const result = parseDownloadArgs(['abc-123']);
+    expect(result.snInstance).toBeUndefined();
+    expect(result.snUser).toBeUndefined();
+    expect(result.snPass).toBeUndefined();
+  });
 });
 
 describe('CLI binary', () => {

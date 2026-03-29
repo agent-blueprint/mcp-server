@@ -45,7 +45,8 @@ Usage:
   agentblueprint get implementation-plan <id> [--org <id>]  Implementation plan summary
   agentblueprint get implementation-spec <id> [--org <id>]  Implementation spec metadata
   agentblueprint get business-profile [--org <id>]      Business profile
-  agentblueprint download <id> [--org <id>] [--dir <path>] [--platform <p>] [--no-mcp]  Download as Agent Skills
+  agentblueprint download <id> [--org <id>] [--dir <path>] [--platform <p>] [--no-mcp]
+    [--sn-instance <name>] [--sn-user <user>] [--sn-pass <pass>]  Download as Agent Skills
   agentblueprint sync [<file>] [--blueprint <id>] [--org <id>]  Sync implementation state
   agentblueprint --help                                 Show this help
   agentblueprint --version                              Show version
@@ -53,6 +54,9 @@ Usage:
 Environment:
   AGENT_BLUEPRINT_API_KEY    API token (alternative to login)
   AGENT_BLUEPRINT_API_URL    API base URL (default: https://app.agentblueprint.ai)
+  SN_INSTANCE                ServiceNow instance name (non-interactive MCP setup)
+  SN_USER                    ServiceNow username (default: admin)
+  SN_PASS                    ServiceNow password (non-interactive MCP setup)
 
 Output goes to stdout (JSON). Status messages go to stderr.
 When stdin is piped (non-interactive), starts the MCP server instead.
