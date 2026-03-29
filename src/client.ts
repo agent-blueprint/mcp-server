@@ -1,5 +1,5 @@
 import type { Config } from './config.js';
-import type { ImplementationStateResponse, ProgressResponse } from './types.js';
+import type { ImplementationStateResponse, ProgressResponse, StrategicRecommendationsResponse } from './types.js';
 import { ApiError } from './errors.js';
 
 export interface ApiResponse<T> {
@@ -198,6 +198,16 @@ export class AgentBlueprintClient {
   ): Promise<ProgressResponse> {
     return this.request<ProgressResponse>(
       `/blueprints/${encodeURIComponent(blueprintId)}/progress`,
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async getRecommendations(
+    blueprintId: string,
+    customerOrgId?: string,
+  ): Promise<StrategicRecommendationsResponse | null> {
+    return this.request<StrategicRecommendationsResponse | null>(
+      `/blueprints/${encodeURIComponent(blueprintId)}/recommendations`,
       this.orgQuery(customerOrgId),
     );
   }

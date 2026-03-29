@@ -24,6 +24,7 @@ import { handleUpdateImplementationPlan } from './tools/update-implementation-pl
 import { handleUpdateUseCase } from './tools/update-use-case.js';
 import { handleUpdateBusinessProfile } from './tools/update-business-profile.js';
 import { handleRecalculateFinancials } from './tools/recalculate-financials.js';
+import { handleGetRecommendations } from './tools/get-recommendations.js';
 
 export function createServer(config: Config): McpServer {
   const client = new AgentBlueprintClient(config);
@@ -259,6 +260,19 @@ export function createServer(config: Config): McpServer {
       customerOrgId: customerOrgParam,
     },
     async (args) => handleRecalculateFinancials(client, {
+      blueprintId: args.blueprintId,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'get_recommendations',
+    'Get strategic recommendations for a blueprint based on implementation state, performance metrics, and AI landscape changes. Returns prioritized, actionable recommendations. Requires implementation state to be synced first via sync_implementation_state. Use ?force=true to regenerate.',
+    {
+      blueprintId: z.string().describe('The blueprint ID (UUID)'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleGetRecommendations(client, {
       blueprintId: args.blueprintId,
       customerOrgId: args.customerOrgId,
     })

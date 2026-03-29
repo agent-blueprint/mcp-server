@@ -5,7 +5,7 @@
 // into a Map<string, string> of { relativePath → fileContent }
 // =============================================================================
 
-import type { ImplementationStateResponse, ProgressResponse } from './types.js';
+import type { ImplementationStateResponse, ProgressResponse, StrategicRecommendationsResponse } from './types.js';
 
 export interface SkillFile {
   path: string;
@@ -34,6 +34,7 @@ export interface SkillRenderInput {
   baseSkill?: { files: SkillFile[] };
   implementationState?: ImplementationStateResponse | null;
   progress?: ProgressResponse | null;
+  recommendations?: StrategicRecommendationsResponse | null;
   staleness?: StalenessInfo;
 }
 
@@ -2628,6 +2629,84 @@ function buildClaudeCodeHooksConfig(input: SkillRenderInput): string {
 }
 
 // =============================================================================
+// STRATEGIC RECOMMENDATIONS (Phase 5 — Living Blueprint)
+// =============================================================================
+
+function buildRecommendations(input: SkillRenderInput): string {
+  const recs = input.recommendations!.recommendations;
+  const lines: string[] = [];
+
+  lines.push('# Strategic Recommendations');
+  lines.push('');
+  lines.push(`> Generated: ${recs.generatedAt}`);
+  lines.push('');
+  lines.push(recs.summary);
+  lines.push('');
+
+  // Group by priority
+  const priorityOrder = ['critical', 'high', 'medium', 'low'] as const;
+  const priorityLabels: Record<string, string> = {
+    critical: 'Critical',
+    high: 'High Priority',
+    medium: 'Medium Priority',
+    low: 'Lower Priority',
+  };
+
+  for (const priority of priorityOrder) {
+    const group = recs.recommendations.filter(r => r.priority === priority);
+    if (group.length === 0) continue;
+
+    lines.push(`## ${priorityLabels[priority]}`);
+    lines.push('');
+
+    for (const rec of group) {
+      lines.push(`### ${rec.id}: ${rec.title}`);
+      lines.push('');
+      lines.push(`**Category:** ${rec.category.replace(/_/g, ' ')}`);
+      lines.push(`**Confidence:** ${rec.confidence}`);
+      lines.push('');
+      lines.push(`**What:** ${rec.what}`);
+      lines.push('');
+      lines.push(`**Why:** ${rec.why}`);
+      lines.push('');
+      lines.push(`**Expected Impact:** ${rec.expectedImpact}`);
+
+      if (rec.financialImpact) {
+        const fi = rec.financialImpact;
+        const value = fi.estimatedValue ? ` (${fi.estimatedValue})` : '';
+        lines.push('');
+        lines.push(`**Financial Impact:** ${fi.type.replace(/_/g, ' ')}${value} -- ${fi.basis}`);
+      }
+
+      if (rec.relatedAgents?.length) {
+        lines.push('');
+        lines.push(`**Related Agents:** ${rec.relatedAgents.join(', ')}`);
+      }
+
+      if (rec.relatedMetrics?.length) {
+        lines.push('');
+        lines.push(`**Related Metrics:** ${rec.relatedMetrics.join(', ')}`);
+      }
+
+      lines.push('');
+    }
+  }
+
+  // Context snapshot footer
+  const ctx = recs.contextSnapshot;
+  lines.push('---');
+  lines.push('');
+  lines.push(`Implementation: ${ctx.implementationProgress}`);
+  lines.push(`Performance: ${ctx.performanceStatus}`);
+  if (ctx.daysInImplementation > 0) {
+    lines.push(`Days in implementation: ${ctx.daysInImplementation}`);
+  }
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+// =============================================================================
 // MAIN RENDER FUNCTION
 // =============================================================================
 
@@ -2698,6 +2777,11 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
   // Reality layer (return visits -- Living Blueprint Phase 3A)
   if (hasImplementationData(input)) {
     files.set('CURRENT-STATE.md', buildCurrentState(input));
+  }
+
+  // Strategic recommendations (return visits -- Living Blueprint Phase 5)
+  if (hasImplementationData(input) && input.recommendations?.recommendations) {
+    files.set('RECOMMENDATIONS.md', buildRecommendations(input));
   }
 
   return files;

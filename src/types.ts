@@ -49,3 +49,32 @@ export interface ProgressResponse {
     lastSyncedAt: string;
   } | null;
 }
+
+export interface StrategicRecommendationsResponse {
+  id: string;
+  blueprintId: string;
+  generatedAt: string;
+  recommendations: {
+    generatedAt: string;
+    blueprintId: string;
+    summary: string;
+    recommendations: Array<{
+      id: string;
+      priority: string;
+      category: string;
+      title: string;
+      what: string;
+      why: string;
+      expectedImpact: string;
+      confidence: string;
+      financialImpact?: { type: string; estimatedValue?: string; basis: string };
+      relatedAgents?: string[];
+      relatedMetrics?: string[];
+    }>;
+    contextSnapshot: {
+      implementationProgress: string;
+      performanceStatus: string;
+      daysInImplementation: number;
+    };
+  };
+}
