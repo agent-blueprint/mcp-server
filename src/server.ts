@@ -183,7 +183,7 @@ export function createServer(config: Config): McpServer {
     'Update blueprint sections with actual implementation data. Sends full top-level sections that are shallow-merged into the existing blueprint. Creates a version snapshot before mutation and propagates staleness to business case and implementation plan. Use this when the implementation diverges from the original recommendation.',
     {
       blueprintId: z.string().describe('The blueprint ID (UUID)'),
-      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Valid keys: enhancedDigitalTeam, phases, executiveSummary, executiveSummaryDetails, platformRecommendation, agenticPattern, riskAssessment, successCriteria, feasibilityIndicators, laborAnalysis, title, blueprintTitle, roiBaseline, howItWorks, teams, kpis, digitalTeam, implementation, dataProvenance, architectureRationale, integrationGaps, customTables'),
+      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Common keys: enhancedDigitalTeam, phases, executiveSummary, executiveSummaryDetails, platformRecommendation, agenticPattern, riskAssessment, successCriteria, feasibilityIndicators, laborAnalysis, title, blueprintTitle, roiBaseline, howItWorks, teams, kpis, digitalTeam, implementation, dataProvenance, architectureRationale, integrationGaps, customTables. Additional keys are accepted and preserved.'),
       customerOrgId: customerOrgParam,
     },
     async (args) => handleUpdateBlueprint(client, {
@@ -198,7 +198,7 @@ export function createServer(config: Config): McpServer {
     'Update business case sections. Shallow-merges provided sections into the existing business case data. Propagates staleness to implementation plan. After updating, consider calling recalculate_financials to refresh ROI projections.',
     {
       blueprintId: z.string().describe('The blueprint ID (UUID)'),
-      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Valid keys: executiveSummary, businessContext, objectives, proposedSolution, benefits, risks, recommendation'),
+      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Common keys: executiveSummary, businessContext, objectives, proposedSolution, benefits, risks, recommendation. Additional keys are accepted and preserved.'),
       customerOrgId: customerOrgParam,
     },
     async (args) => handleUpdateBusinessCase(client, {
@@ -213,7 +213,7 @@ export function createServer(config: Config): McpServer {
     'Update implementation plan sections. Shallow-merges provided sections into the existing plan. This is a terminal artifact with no downstream staleness propagation.',
     {
       blueprintId: z.string().describe('The blueprint ID (UUID)'),
-      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Valid keys: projectOverview, epics, dependencies, resources, risks, agentSpecifications'),
+      sections: z.record(z.string(), z.unknown()).describe('Top-level sections to merge. Common keys: projectOverview, epics, dependencies, resources, risks, agentSpecifications. Additional keys are accepted and preserved.'),
       customerOrgId: customerOrgParam,
     },
     async (args) => handleUpdateImplementationPlan(client, {
@@ -228,7 +228,7 @@ export function createServer(config: Config): McpServer {
     'Update use case fields for a blueprint. Updates the use case linked to the specified blueprint. Propagates staleness to the blueprint.',
     {
       blueprintId: z.string().describe('The blueprint ID (UUID)'),
-      sections: z.record(z.string(), z.unknown()).describe('Fields to update. Valid keys: title, description, businessChallenge, description5Ws, currentPainPoints, desiredBusinessOutcomes, processDocumentation, transformationStory, typedSuccessMetrics, organizationalConstraints, affectedDepartments'),
+      sections: z.record(z.string(), z.unknown()).describe('Fields to update. Common keys: title, description, businessChallenge, description5Ws, currentPainPoints, desiredBusinessOutcomes, processDocumentation, transformationStory, typedSuccessMetrics, organizationalConstraints, affectedDepartments. Unknown keys are accepted but only mapped fields are persisted.'),
       customerOrgId: customerOrgParam,
     },
     async (args) => handleUpdateUseCase(client, {
