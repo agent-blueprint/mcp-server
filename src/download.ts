@@ -5,7 +5,6 @@ import { AgentBlueprintClient } from './client.js';
 import type { Config } from './config.js';
 import { getNextActionDirective } from './directives.js';
 import { fetchAndRenderBlueprint } from './fetch-blueprint.js';
-import type { McpSetupCredentials } from './mcp-setup.js';
 
 export interface DownloadArgs {
   blueprintId?: string;
@@ -13,11 +12,10 @@ export interface DownloadArgs {
   list: boolean;
   customerOrgId?: string;
   platform?: string;
-  noMcp?: boolean;
-  snInstance?: string;
-  snUser?: string;
-  snPass?: string;
 }
+
+// Flags that moved to `agentblueprint setup` — log deprecation if used
+const DEPRECATED_FLAGS = new Set(['--no-mcp', '--sn-instance', '--sn-user', '--sn-pass']);
 
 export function parseDownloadArgs(args: string[]): DownloadArgs {
   const result: DownloadArgs = {
@@ -25,8 +23,16 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
     list: false,
   };
 
+  let hasDeprecatedFlags = false;
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    if (DEPRECATED_FLAGS.has(arg)) {
+      hasDeprecatedFlags = true;
+      // Skip value for flags that take one
+      if (arg !== '--no-mcp') i++;
+      continue;
+    }
     switch (arg) {
       case '--blueprint':
         result.blueprintId = args[++i];
@@ -43,18 +49,6 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
       case '--platform':
         result.platform = args[++i];
         break;
-      case '--no-mcp':
-        result.noMcp = true;
-        break;
-      case '--sn-instance':
-        result.snInstance = args[++i];
-        break;
-      case '--sn-user':
-        result.snUser = args[++i];
-        break;
-      case '--sn-pass':
-        result.snPass = args[++i];
-        break;
       default:
         // Positional arg: treat as blueprint ID if it doesn't start with --
         if (!arg.startsWith('--') && !result.blueprintId) {
@@ -62,6 +56,11 @@ export function parseDownloadArgs(args: string[]): DownloadArgs {
         }
         break;
     }
+  }
+
+  if (hasDeprecatedFlags) {
+    console.error('Warning: --no-mcp, --sn-instance, --sn-user, --sn-pass have moved to `agentblueprint setup`.');
+    console.error('These flags on `download` are deprecated and will be removed in a future version.\n');
   }
 
   return result;
@@ -80,11 +79,7 @@ export async function runDownload(config: Config, args: DownloadArgs): Promise<v
     process.exit(1);
   }
 
-  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId, args.platform, args.noMcp, {
-    instance: args.snInstance,
-    username: args.snUser,
-    password: args.snPass,
-  });
+  await downloadBlueprint(client, args.blueprintId, args.dir, args.customerOrgId, args.platform);
 }
 
 async function listBlueprints(client: AgentBlueprintClient, customerOrgId?: string): Promise<void> {
@@ -138,8 +133,6 @@ async function downloadBlueprint(
   baseDir: string,
   customerOrgId?: string,
   platform?: string,
-  noMcp?: boolean,
-  snCredentials?: McpSetupCredentials
 ): Promise<void> {
   blueprintId = await resolveId(client, blueprintId, customerOrgId);
   console.error(`Fetching blueprint ${blueprintId}...`);
@@ -190,15 +183,24 @@ async function downloadBlueprint(
     console.error('');
     console.error('Return visit detected: includes implementation state and/or metrics.');
   }
+  // Check platform credentials before printing directive
+  let platformNotConfigured = false;
+  if (platform === 'servicenow') {
+    const { isServiceNowConfigured } = await import('./mcp-setup.js');
+    const configured = await isServiceNowConfigured();
+    if (!configured) {
+      platformNotConfigured = true;
+      console.error('ServiceNow instance not configured.');
+      console.error('Run: agentblueprint setup');
+      console.error('Or set: SN_INSTANCE, SN_USER, SN_PASS environment variables.');
+    }
+  }
+
   console.error('');
   console.error(getNextActionDirective({
     hasImplementationState: result.hasImplementationState,
     hasBaseSkill: result.hasBaseSkill,
     vendorSkillName: result.vendorSkillName,
+    platformNotConfigured,
   }));
-
-  if (platform === 'servicenow' && !noMcp) {
-    const { setupServiceNowMcp } = await import('./mcp-setup.js');
-    await setupServiceNowMcp(snCredentials);
-  }
 }

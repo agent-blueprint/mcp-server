@@ -1,10 +1,31 @@
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 
 const execFileAsync = promisify(execFile);
+
+/**
+ * Check if ServiceNow credentials are configured via env vars or MCP config file.
+ * Used by download to decide whether to show the "run setup" nudge.
+ */
+export async function isServiceNowConfigured(): Promise<boolean> {
+  // Check env vars first (preferred approach)
+  if (process.env.SN_INSTANCE && process.env.SN_PASS) {
+    return true;
+  }
+
+  // Check if servicenow-instances.json exists in the global npm package
+  try {
+    const { stdout } = await execFileAsync('npm', ['root', '-g']);
+    const configPath = join(stdout.trim(), 'servicenow-mcp-server', 'config', 'servicenow-instances.json');
+    await access(configPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export interface McpSetupCredentials {
   instance?: string;

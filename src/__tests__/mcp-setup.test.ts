@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { writeFile, mkdir, access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
 vi.mock('node:fs/promises', () => ({
   writeFile: vi.fn(),
   mkdir: vi.fn(),
+  access: vi.fn(),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -257,5 +258,49 @@ describe('setupServiceNowMcp — non-interactive', () => {
 
     delete process.env.SN_INSTANCE;
     delete process.env.SN_PASS;
+  });
+});
+
+describe('isServiceNowConfigured', () => {
+  const origInstance = process.env.SN_INSTANCE;
+  const origPass = process.env.SN_PASS;
+
+  afterEach(() => {
+    // Restore env
+    if (origInstance !== undefined) process.env.SN_INSTANCE = origInstance;
+    else delete process.env.SN_INSTANCE;
+    if (origPass !== undefined) process.env.SN_PASS = origPass;
+    else delete process.env.SN_PASS;
+  });
+
+  it('returns true when env vars are set', async () => {
+    process.env.SN_INSTANCE = 'dev99';
+    process.env.SN_PASS = 'secret';
+
+    const { isServiceNowConfigured } = await import('../mcp-setup.js');
+    expect(await isServiceNowConfigured()).toBe(true);
+  });
+
+  it('returns true when config file exists', async () => {
+    delete process.env.SN_INSTANCE;
+    delete process.env.SN_PASS;
+
+    const mockedExecFile = vi.mocked(execFile);
+    mockedExecFile.mockResolvedValueOnce({ stdout: '/usr/local/lib/node_modules\n', stderr: '' } as never);
+    vi.mocked(access).mockResolvedValueOnce(undefined);
+
+    const { isServiceNowConfigured } = await import('../mcp-setup.js');
+    expect(await isServiceNowConfigured()).toBe(true);
+  });
+
+  it('returns false when nothing configured', async () => {
+    delete process.env.SN_INSTANCE;
+    delete process.env.SN_PASS;
+
+    const mockedExecFile = vi.mocked(execFile);
+    mockedExecFile.mockRejectedValueOnce(new Error('not found'));
+
+    const { isServiceNowConfigured } = await import('../mcp-setup.js');
+    expect(await isServiceNowConfigured()).toBe(false);
   });
 });

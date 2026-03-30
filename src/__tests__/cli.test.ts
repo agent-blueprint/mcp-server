@@ -45,31 +45,22 @@ describe('parseDownloadArgs', () => {
     expect(result.list).toBe(false);
   });
 
-  it('parses --no-mcp flag', () => {
-    const result = parseDownloadArgs(['abc-123', '--no-mcp']);
-    expect(result.noMcp).toBe(true);
-  });
-
-  it('noMcp defaults to falsy', () => {
-    const result = parseDownloadArgs(['abc-123']);
-    expect(result.noMcp).toBeFalsy();
-  });
-
-  it('parses --sn-instance, --sn-user, --sn-pass flags', () => {
+  it('deprecated flags are ignored with warning', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const result = parseDownloadArgs([
       'abc-123', '--platform', 'servicenow',
-      '--sn-instance', 'dev99', '--sn-user', 'admin', '--sn-pass', 'secret',
+      '--sn-instance', 'dev99', '--sn-user', 'admin', '--sn-pass', 'secret', '--no-mcp',
     ]);
-    expect(result.snInstance).toBe('dev99');
-    expect(result.snUser).toBe('admin');
-    expect(result.snPass).toBe('secret');
-  });
-
-  it('sn credential flags default to undefined', () => {
-    const result = parseDownloadArgs(['abc-123']);
-    expect(result.snInstance).toBeUndefined();
-    expect(result.snUser).toBeUndefined();
-    expect(result.snPass).toBeUndefined();
+    expect(result.blueprintId).toBe('abc-123');
+    expect(result.platform).toBe('servicenow');
+    // Deprecated flags should not be on the result
+    expect(result).not.toHaveProperty('noMcp');
+    expect(result).not.toHaveProperty('snInstance');
+    // Should log deprecation warning
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('moved to `agentblueprint setup`')
+    );
+    spy.mockRestore();
   });
 });
 
@@ -77,10 +68,19 @@ describe('CLI binary', () => {
   it('shows help with --help', async () => {
     const { stderr } = await exec('node', [CLI_PATH, '--help']);
     expect(stderr).toContain('Agent Blueprint CLI');
+    expect(stderr).toContain('agentblueprint setup');
     expect(stderr).toContain('agentblueprint login');
     expect(stderr).toContain('agentblueprint list');
     expect(stderr).toContain('agentblueprint get');
     expect(stderr).toContain('agentblueprint download');
+  });
+
+  it('help does not include deprecated --no-mcp or --sn-* on download line', async () => {
+    const { stderr } = await exec('node', [CLI_PATH, '--help']);
+    // The download line should not mention --no-mcp or --sn-instance
+    const downloadLine = stderr.split('\n').find(l => l.includes('agentblueprint download'));
+    expect(downloadLine).not.toContain('--no-mcp');
+    expect(downloadLine).not.toContain('--sn-instance');
   });
 
   it('shows version with --version', async () => {

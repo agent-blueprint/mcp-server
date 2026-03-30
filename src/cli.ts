@@ -7,7 +7,7 @@ import { AgentBlueprintClient } from './client.js';
 import { loadConfig, type Config } from './config.js';
 import { formatError } from './errors.js';
 import { parseDownloadArgs, runDownload } from './download.js';
-import { saveToken } from './token-store.js';
+import { parseSetupArgs, runSetup, validateAndSaveToken } from './setup.js';
 import { handleGetBlueprint } from './tools/get-blueprint.js';
 import { handleGetBusinessCase } from './tools/get-business-case.js';
 import { handleGetBusinessProfile } from './tools/get-business-profile.js';
@@ -37,6 +37,8 @@ const HELP = `
 Agent Blueprint CLI v${pkg.version}
 
 Usage:
+  agentblueprint setup [--token <token>] [--token-only]
+    [--sn-instance <name>] [--sn-user <user>] [--sn-pass <pass>]  One-time setup
   agentblueprint login [--token <token>]                Store API token
   agentblueprint list [--org <id>]                      List blueprints
   agentblueprint get blueprint <id> [--org <id>]        Blueprint summary
@@ -45,8 +47,8 @@ Usage:
   agentblueprint get implementation-plan <id> [--org <id>]  Implementation plan summary
   agentblueprint get implementation-spec <id> [--org <id>]  Implementation spec metadata
   agentblueprint get business-profile [--org <id>]      Business profile
-  agentblueprint download <id> [--org <id>] [--dir <path>] [--platform <p>] [--no-mcp]
-    [--sn-instance <name>] [--sn-user <user>] [--sn-pass <pass>]  Download as Agent Skills
+  agentblueprint download <id> [--org <id>] [--dir <path>] [--platform <p>]
+                                                        Download as Agent Skills
   agentblueprint sync [<file>] [--blueprint <id>] [--org <id>]  Sync implementation state
   agentblueprint --help                                 Show this help
   agentblueprint --version                              Show version
@@ -54,9 +56,9 @@ Usage:
 Environment:
   AGENT_BLUEPRINT_API_KEY    API token (alternative to login)
   AGENT_BLUEPRINT_API_URL    API base URL (default: https://app.agentblueprint.ai)
-  SN_INSTANCE                ServiceNow instance name (non-interactive MCP setup)
+  SN_INSTANCE                ServiceNow instance name (platform credentials)
   SN_USER                    ServiceNow username (default: admin)
-  SN_PASS                    ServiceNow password (non-interactive MCP setup)
+  SN_PASS                    ServiceNow password (platform credentials)
 
 Output goes to stdout (JSON). Status messages go to stderr.
 When stdin is piped (non-interactive), starts the MCP server instead.
@@ -83,27 +85,9 @@ async function cmdLogin(args: string[]): Promise<void> {
     process.exit(1);
   }
 
-  // Validate by making a test call and showing identity
-  console.error('Validating token...');
-  try {
-    const config = loadConfig(token);
-    const client = new AgentBlueprintClient(config);
-    const identity = await client.getIdentity();
-    const label = identity.email
-      ? `${identity.email} (${identity.organizationName ?? identity.organizationId})`
-      : identity.organizationName ?? identity.organizationId;
-    console.error(`Authenticated as: ${label}`);
-    if (identity.isPartnerMember) {
-      console.error('Partner account: use --org <id> to access customer organizations.');
-    }
-  } catch (err) {
-    console.error(`Error: Token validation failed. ${formatError(err)}`);
-    process.exit(1);
-  }
-
   const apiUrl = findFlag(args, '--api-url');
-  saveToken(token, apiUrl);
-  console.error('Token saved. You can now run commands without --token.');
+  await validateAndSaveToken(token, apiUrl);
+  console.error('You can now run commands without --token.');
 }
 
 async function cmdList(args: string[]): Promise<void> {
@@ -335,6 +319,9 @@ async function main() {
 
   try {
     switch (command) {
+      case 'setup':
+        await runSetup(parseSetupArgs(rest));
+        break;
       case 'login':
         await cmdLogin(rest);
         break;
