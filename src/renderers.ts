@@ -339,6 +339,7 @@ function buildSkillBody(input: SkillRenderInput): string {
     if (str(quantifiedROI.roi) && !isPlaceholder(str(quantifiedROI.roi))) lines.push(`- **ROI:** ${str(quantifiedROI.roi)}`);
     if (str(quantifiedROI.npv) && !isPlaceholder(str(quantifiedROI.npv))) lines.push(`- **NPV:** ${str(quantifiedROI.npv)}`);
     if (str(quantifiedROI.paybackPeriod) && !isPlaceholder(str(quantifiedROI.paybackPeriod))) lines.push(`- **Payback:** ${str(quantifiedROI.paybackPeriod)}`);
+    if (str(quantifiedROI.annualSavings) && !isPlaceholder(str(quantifiedROI.annualSavings))) lines.push(`- **Annual Savings:** ${str(quantifiedROI.annualSavings)}`);
 
     const pilotROI = rec(quantifiedROI.pilotROI);
     const skillPilotCapex = str(rec(pilotROI.pilotCapex).value);
@@ -842,11 +843,13 @@ function buildFinancialCase(input: SkillRenderInput): string {
   const roiVal = str(qROI.roi);
   const npvVal = str(qROI.npv);
   const paybackVal = str(qROI.paybackPeriod);
-  if ((roiVal && !isPlaceholder(roiVal)) || (npvVal && !isPlaceholder(npvVal)) || (paybackVal && !isPlaceholder(paybackVal))) {
+  const annualSavingsVal = str(qROI.annualSavings);
+  if ((roiVal && !isPlaceholder(roiVal)) || (npvVal && !isPlaceholder(npvVal)) || (paybackVal && !isPlaceholder(paybackVal)) || (annualSavingsVal && !isPlaceholder(annualSavingsVal))) {
     lines.push('## Return on Investment', '');
     if (roiVal && !isPlaceholder(roiVal)) lines.push(`- **ROI:** ${roiVal}`);
     if (npvVal && !isPlaceholder(npvVal)) lines.push(`- **NPV:** ${npvVal}`);
     if (paybackVal && !isPlaceholder(paybackVal)) lines.push(`- **Payback period:** ${paybackVal}`);
+    if (annualSavingsVal && !isPlaceholder(annualSavingsVal)) lines.push(`- **Annual Savings:** ${annualSavingsVal}`);
     lines.push('');
   }
 
