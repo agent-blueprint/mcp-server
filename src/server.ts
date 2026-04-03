@@ -1,8 +1,12 @@
+import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { AgentBlueprintClient } from './client.js';
 import type { Config } from './config.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json') as { version: string };
 import { readBlueprint, blueprintResourceTemplate } from './resources/blueprint.js';
 import { readBlueprintList, blueprintListResource } from './resources/blueprints.js';
 import { readBusinessProfile, businessProfileResource } from './resources/business-profile.js';
@@ -31,7 +35,7 @@ export function createServer(config: Config): McpServer {
 
   const server = new McpServer({
     name: 'agent-blueprint',
-    version: '0.2.0',
+    version: pkg.version,
   });
 
   // ─── Tools ──────────────────────────────────────────────────────────

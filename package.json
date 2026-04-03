@@ -32,6 +32,12 @@
     "model-context-protocol"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agent-blueprint/mcp-server"
+  },
+  "homepage": "https://agentblueprint.ai/developers",
+  "mcpName": "io.github.agent-blueprint/mcp-server",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",
     "js-yaml": "^4.1.1"

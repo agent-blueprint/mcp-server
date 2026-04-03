@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.agent-blueprint/mcp-server",
+  "title": "Agent Blueprint",
+  "description": "Read blueprints, business cases, implementation plans, and specs from your coding agent",
+  "version": "0.7.13",
+  "websiteUrl": "https://agentblueprint.ai/developers",
+  "repository": {
+    "url": "https://github.com/agent-blueprint/mcp-server",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "agentblueprint",
+      "version": "0.7.13",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "AGENT_BLUEPRINT_API_KEY",
+          "description": "API token from app.agentblueprint.ai/settings/api-tokens",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
