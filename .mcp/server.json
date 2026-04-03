@@ -3,7 +3,7 @@
   "name": "io.github.agent-blueprint/mcp-server",
   "title": "Agent Blueprint",
   "description": "Read blueprints, business cases, implementation plans, and specs from your coding agent",
-  "version": "0.7.13",
+  "version": "0.7.14",
   "websiteUrl": "https://agentblueprint.ai/developers",
   "repository": {
     "url": "https://github.com/agent-blueprint/mcp-server",
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "agentblueprint",
-      "version": "0.7.13",
+      "version": "0.7.14",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
