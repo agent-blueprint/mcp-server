@@ -16,7 +16,7 @@ export function getNextActionDirective(opts: {
     return 'ACTION REQUIRED NOW: Read CURRENT-STATE.md for where things stand, then RECOMMENDATIONS.md for what to do next. You are continuing an implementation. Do not ask the user what to do — read the files and resume working.';
   }
   const setupHint = opts.platformNotConfigured
-    ? ' IMPORTANT: Platform credentials are not configured. Run `agentblueprint setup` or set SN_INSTANCE, SN_USER, SN_PASS environment variables before connecting to the instance.'
+    ? ' Note: Platform credentials are not yet configured. GETTING-STARTED.md covers all access levels including working without credentials. If the user provides credentials, run `agentblueprint setup` to configure them.'
     : '';
   if (opts.vendorSkillName) {
     return `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately, then load the base skill at .claude/skills/agent-blueprint/SKILL.md and the expert skill at .claude/skills/${opts.vendorSkillName}/SKILL.md. You are the implementer. Do not summarize these files to the user. Do not ask what to do next. Read them and start building.${setupHint}`;
