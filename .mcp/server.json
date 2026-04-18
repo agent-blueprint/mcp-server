@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.agent-blueprint/mcp-server",
   "title": "Agent Blueprint",
-  "description": "8 MCP tools for exploring and downloading AI agent blueprints. List blueprints, get summaries, download full Agent Skills directories for implementation by coding agents. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.",
+  "description": "Explore and download AI agent blueprints as Agent Skills directories for coding agents",
   "version": "0.7.15",
   "websiteUrl": "https://agentblueprint.ai/developers",
   "repository": {
