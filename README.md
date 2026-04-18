@@ -1,6 +1,6 @@
 # agentblueprint
 
-CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — gives your coding agent read access to your AI blueprints, business cases, implementation plans, and specs.
+CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — 8 MCP tools for exploring and downloading AI agent blueprints. List blueprints, get summaries, download full Agent Skills directories for implementation by coding agents. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.
 
 ## CLI Quick Start
 
