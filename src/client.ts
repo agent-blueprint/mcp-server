@@ -15,13 +15,27 @@ export class AgentBlueprintClient {
     this.config = config;
   }
 
-  private async request<T>(path: string, query?: Record<string, string>): Promise<T> {
+  private buildUrl(path: string, query?: Record<string, string>): URL {
     const url = new URL(`${this.config.apiUrl}/api/v1${path}`);
     if (query) {
       for (const [k, v] of Object.entries(query)) {
         url.searchParams.set(k, v);
       }
     }
+    return url;
+  }
+
+  private async buildApiError(response: Response): Promise<ApiError> {
+    const body = await response.json().catch(() => ({ error: response.statusText }));
+    return new ApiError(
+      response.status,
+      (body as Record<string, string>).error || `Request failed: ${response.status}`,
+      (body as Record<string, string>).code,
+    );
+  }
+
+  private async request<T>(path: string, query?: Record<string, string>): Promise<T> {
+    const url = this.buildUrl(path, query);
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
@@ -31,11 +45,7 @@ export class AgentBlueprintClient {
     });
 
     if (!response.ok) {
-      const body = await response.json().catch(() => ({ error: response.statusText }));
-      throw new ApiError(
-        response.status,
-        (body as Record<string, string>).error || `Request failed: ${response.status}`
-      );
+      throw await this.buildApiError(response);
     }
 
     const json = (await response.json()) as ApiResponse<T>;
@@ -47,12 +57,7 @@ export class AgentBlueprintClient {
   }
 
   private async postRequest<T>(path: string, body: unknown, query?: Record<string, string>): Promise<T> {
-    const url = new URL(`${this.config.apiUrl}/api/v1${path}`);
-    if (query) {
-      for (const [k, v] of Object.entries(query)) {
-        url.searchParams.set(k, v);
-      }
-    }
+    const url = this.buildUrl(path, query);
     const response = await fetch(url.toString(), {
       method: 'POST',
       headers: {
@@ -64,11 +69,7 @@ export class AgentBlueprintClient {
     });
 
     if (!response.ok) {
-      const respBody = await response.json().catch(() => ({ error: response.statusText }));
-      throw new ApiError(
-        response.status,
-        (respBody as Record<string, string>).error || `Request failed: ${response.status}`
-      );
+      throw await this.buildApiError(response);
     }
 
     const json = (await response.json()) as ApiResponse<T>;
@@ -80,12 +81,7 @@ export class AgentBlueprintClient {
   }
 
   private async patchRequest<T>(path: string, body: unknown, query?: Record<string, string>): Promise<T> {
-    const url = new URL(`${this.config.apiUrl}/api/v1${path}`);
-    if (query) {
-      for (const [k, v] of Object.entries(query)) {
-        url.searchParams.set(k, v);
-      }
-    }
+    const url = this.buildUrl(path, query);
     const response = await fetch(url.toString(), {
       method: 'PATCH',
       headers: {
@@ -97,11 +93,7 @@ export class AgentBlueprintClient {
     });
 
     if (!response.ok) {
-      const respBody = await response.json().catch(() => ({ error: response.statusText }));
-      throw new ApiError(
-        response.status,
-        (respBody as Record<string, string>).error || `Request failed: ${response.status}`
-      );
+      throw await this.buildApiError(response);
     }
 
     const json = (await response.json()) as ApiResponse<T>;
@@ -122,6 +114,70 @@ export class AgentBlueprintClient {
 
   async getBusinessProfile(customerOrgId?: string): Promise<BusinessProfile> {
     return this.request<BusinessProfile>('/business-profile', this.orgQuery(customerOrgId));
+  }
+
+  async createBusinessProfile(
+    fields: Record<string, unknown>,
+    customerOrgId?: string,
+  ): Promise<BusinessProfileUpsertResponse> {
+    return this.postRequest<BusinessProfileUpsertResponse>(
+      '/business-profile',
+      { fields },
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async generateUseCases(
+    input: UseCaseGenerationRequest,
+    customerOrgId?: string,
+  ): Promise<UseCaseGenerationResponse> {
+    return this.postRequest<UseCaseGenerationResponse>(
+      '/generate/use-cases',
+      input,
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async triggerBlueprintGeneration(
+    input: BlueprintGenerationRequest,
+    customerOrgId?: string,
+  ): Promise<BlueprintGenerationTriggerResponse> {
+    return this.postRequest<BlueprintGenerationTriggerResponse>(
+      '/generate/blueprint',
+      input,
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async getBlueprintGenerationStatus(
+    auditId: string,
+    customerOrgId?: string,
+  ): Promise<BlueprintGenerationStatusResponse> {
+    return this.request<BlueprintGenerationStatusResponse>(
+      `/generate/blueprint/status/${encodeURIComponent(auditId)}`,
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async triggerFullPipeline(
+    input: FullPipelineTriggerRequest,
+    customerOrgId?: string,
+  ): Promise<FullPipelineTriggerResponse> {
+    return this.postRequest<FullPipelineTriggerResponse>(
+      '/generate/full-pipeline',
+      input,
+      this.orgQuery(customerOrgId),
+    );
+  }
+
+  async getFullPipelineStatus(
+    jobId: string,
+    customerOrgId?: string,
+  ): Promise<FullPipelineStatusResponse> {
+    return this.request<FullPipelineStatusResponse>(
+      `/generate/full-pipeline/status/${encodeURIComponent(jobId)}`,
+      this.orgQuery(customerOrgId),
+    );
   }
 
   async listBlueprints(customerOrgId?: string): Promise<BlueprintSummary[]> {
@@ -471,6 +527,86 @@ export interface BusinessProfile {
   businessOperations: Record<string, unknown> | null;
   constraintsProfile: Record<string, unknown> | null;
   aiReadinessScore: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessProfileUpsertResponse extends BusinessProfile {
+  isNew: boolean;
+}
+
+export interface UseCaseGenerationRequest {
+  count?: number;
+  guidanceText?: string;
+  guidance?: string[];
+  strategicInitiativeId?: string;
+  additionalContext?: string;
+}
+
+export interface UseCaseGenerationResponse {
+  useCases: Record<string, unknown>[];
+  generationMetadata: Record<string, unknown> | null;
+  debugInfo: Record<string, unknown> | null;
+}
+
+export interface BlueprintGenerationRequest {
+  useCaseId: string;
+  platform?: string;
+  guidanceText?: string;
+  guidance?: string[];
+  assumeMissing?: boolean;
+}
+
+export interface BlueprintGenerationTriggerResponse {
+  auditId: string;
+}
+
+export interface BlueprintGenerationStatusResponse {
+  kind: 'blueprint';
+  auditId: string;
+  status: string;
+  progressPercent: number;
+  stage: string | null;
+  stageLabel: string | null;
+  error: string | null;
+  blueprintId: string | null;
+  entityRoute: string | null;
+  entityTitle: string | null;
+  updatedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface FullPipelineTriggerRequest {
+  businessProfileId: string;
+  specialInstructions?: string;
+  platform?: string;
+  strategicInitiativeId?: string;
+}
+
+export interface FullPipelineTriggerResponse {
+  jobId: string;
+}
+
+export interface FullPipelineStatusResponse {
+  kind: 'full_pipeline';
+  jobId: string;
+  status: string;
+  progressPercent: number;
+  currentStep: string | null;
+  error: string | null;
+  businessProfileId: string;
+  platform: string | null;
+  strategicInitiativeId: string | null;
+  generatedArtifactIds: {
+    readinessId: string | null;
+    useCaseIds: string[];
+    selectedUseCaseId: string | null;
+    blueprintId: string | null;
+    businessCaseId: string | null;
+    implementationPlanId: string | null;
+  };
+  startedAt: string | null;
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

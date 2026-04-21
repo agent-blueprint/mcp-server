@@ -19,6 +19,11 @@ import { handleGetImplementationSpec } from './tools/get-implementation-spec.js'
 import { handleGetUseCase } from './tools/get-use-case.js';
 import { handleListBlueprints } from './tools/list-blueprints.js';
 import { handleDownloadBlueprint } from './tools/download-blueprint.js';
+import { handleCreateBusinessProfile } from './tools/create-business-profile.js';
+import { handleGenerateUseCases } from './tools/generate-use-cases.js';
+import { handleGenerateBlueprint } from './tools/generate-blueprint.js';
+import { handleTriggerFullPipeline } from './tools/trigger-full-pipeline.js';
+import { handleGetGenerationStatus } from './tools/get-generation-status.js';
 import { handleSyncImplementationState } from './tools/sync-implementation-state.js';
 import { handleReportMetric } from './tools/report-metric.js';
 import { handleGetProgress } from './tools/get-progress.js';
@@ -47,6 +52,71 @@ export function createServer(config: Config): McpServer {
     'Get the business profile for the organization. Returns company details, industry, strategic initiatives, technology profile, and AI readiness score.',
     { customerOrgId: customerOrgParam },
     async (args) => handleGetBusinessProfile(client, args.customerOrgId)
+  );
+
+  server.tool(
+    'create_business_profile',
+    'Create or upsert a structured business profile for an existing organization. Use this first in the headless workflow: existing PAT + existing org -> create_business_profile -> generate_use_cases or trigger_full_pipeline.',
+    {
+      fields: z.record(z.string(), z.unknown()).describe('Structured business profile fields. Common keys: companyName, companyWebsite, industry, size, revenue, revenueUnit, currency, description, technology, capabilities, operations, constraints, strategicInitiatives.'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleCreateBusinessProfile(client, {
+      fields: args.fields,
+      customerOrgId: args.customerOrgId,
+    })
+  );
+
+  server.tool(
+    'generate_use_cases',
+    'Generate AI use cases from the current business profile and readiness assessment for an existing organization. Returns normalized use case data with IDs you can pass to generate_blueprint.',
+    {
+      count: z.number().int().min(1).max(3).optional().describe('Optional number of use cases to generate (1-3).'),
+      guidanceText: z.string().optional().describe('Optional free-text guidance for the generation run.'),
+      guidance: z.array(z.string()).optional().describe('Optional guidance array. If provided, the first string is used.'),
+      strategicInitiativeId: z.string().uuid().optional().describe('Optional strategic initiative ID to target.'),
+      additionalContext: z.string().optional().describe('Optional extra context (max 50,000 chars).'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleGenerateUseCases(client, args)
+  );
+
+  server.tool(
+    'generate_blueprint',
+    'Start blueprint generation for a chosen use case. This returns an auditId immediately; poll with get_generation_status until the blueprint is ready, then call download_blueprint.',
+    {
+      useCaseId: z.string().uuid().describe('The use case ID to turn into a blueprint.'),
+      platform: z.string().optional().describe('Optional target platform, e.g. "vendor_agnostic", "servicenow", or "openclaw".'),
+      guidanceText: z.string().optional().describe('Optional free-text guidance for the blueprint run.'),
+      guidance: z.array(z.string()).optional().describe('Optional guidance array. If provided, the first string is used.'),
+      assumeMissing: z.boolean().optional().describe('If true, allows the generator to make reasonable assumptions when details are missing.'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleGenerateBlueprint(client, args)
+  );
+
+  server.tool(
+    'trigger_full_pipeline',
+    'Start the full pipeline for an existing business profile. This runs use cases through implementation plan generation asynchronously and returns a jobId; poll with get_generation_status.',
+    {
+      businessProfileId: z.string().uuid().describe('The business profile ID to run through the pipeline.'),
+      specialInstructions: z.string().optional().describe('Optional execution guidance for downstream generations.'),
+      platform: z.string().optional().describe('Optional target platform, e.g. "vendor_agnostic", "servicenow", or "openclaw".'),
+      strategicInitiativeId: z.string().uuid().optional().describe('Optional strategic initiative ID to bias use-case selection.'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleTriggerFullPipeline(client, args)
+  );
+
+  server.tool(
+    'get_generation_status',
+    'Poll either blueprint generation or full-pipeline generation status. Pass exactly one of auditId or jobId. When the run finishes with a blueprintId, call download_blueprint.',
+    {
+      auditId: z.string().uuid().optional().describe('Blueprint generation audit ID returned by generate_blueprint.'),
+      jobId: z.string().uuid().optional().describe('Full-pipeline job ID returned by trigger_full_pipeline.'),
+      customerOrgId: customerOrgParam,
+    },
+    async (args) => handleGetGenerationStatus(client, args)
   );
 
   server.tool(

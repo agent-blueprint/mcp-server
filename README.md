@@ -1,6 +1,6 @@
 # agentblueprint
 
-CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — 8 MCP tools for exploring and downloading AI agent blueprints. List blueprints, get summaries, download full Agent Skills directories for implementation by coding agents. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.
+CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — 23 MCP tools for creating structured business profiles, generating pipeline artifacts, exploring blueprint data, syncing implementation state, and downloading full Agent Skills directories. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.
 
 ## CLI Quick Start
 
@@ -67,6 +67,14 @@ You can also start the MCP server explicitly with `agentblueprint serve`.
 2. Click "Create Token"
 3. Copy the token (shown once)
 
+## Supported Headless Workflow
+
+Current scope is intentionally narrow:
+
+`existing PAT + existing org -> create_business_profile -> generate_use_cases -> generate_blueprint or trigger_full_pipeline -> get_generation_status -> download_blueprint`
+
+This release does **not** handle organization creation, OAuth bootstrap, or free-form context extraction into the business profile.
+
 ## Download Blueprint as Agent Skills
 
 Download a blueprint as a local Agent Skills directory that any coding agent can read from the filesystem. This is the recommended way to work with blueprints.
@@ -102,6 +110,11 @@ The [Agent Skills](https://agentskills.io) standard is supported by Claude Code,
 
 | Tool | Description |
 |------|-------------|
+| `create_business_profile` | Create or upsert a structured business profile for an existing organization |
+| `generate_use_cases` | Generate normalized use cases from the current business profile and readiness assessment |
+| `generate_blueprint` | Start blueprint generation for a chosen use case and return an `auditId` |
+| `trigger_full_pipeline` | Start the full pipeline for an existing business profile and return a `jobId` |
+| `get_generation_status` | Poll either blueprint generation or full-pipeline generation status |
 | `list_blueprints` | List all blueprints (summaries) |
 | `get_blueprint` | Blueprint summary — title, agents, phases, pattern |
 | `get_business_case` | Business case summary — ROI, pilot economics, recommendation |
@@ -110,6 +123,8 @@ The [Agent Skills](https://agentskills.io) standard is supported by Claude Code,
 | `get_implementation_spec` | Implementation spec metadata |
 | `get_business_profile` | Organization business profile |
 | `download_blueprint` | Download full blueprint as Agent Skills file manifest |
+
+The `generate_blueprint` and `trigger_full_pipeline` tools are asynchronous. Use `get_generation_status` to poll until the run completes, then call `download_blueprint` with the resolved `blueprintId`.
 
 The `get_blueprint`, `get_business_case`, and `get_implementation_plan` tools return concise summaries optimized for agent context windows. For full details (agent specs, financial projections, user stories), use `download_blueprint` to get the complete Agent Skills directory.
 
