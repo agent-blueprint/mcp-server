@@ -1658,8 +1658,18 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   if (input.vendorSkill) {
     lines.push(`The \`.claude/skills/${input.vendorSkill.skillName}/\` skill contains platform-specific`);
     lines.push('deployment guidance. Follow it for all platform-specific work.');
+    lines.push('For new apps or first deployments, re-check its deployment-path decision');
+    lines.push('gate before creating more records. Use direct record or API edits mainly');
+    lines.push('for existing deployments, live tuning, or blocked packaging paths. If you');
+    lines.push('choose a fallback, document the reason in `PROGRESS.md` before proceeding.');
     lines.push('');
   }
+
+  lines.push('deployment-path decision checkpoint: before creating new app records, prefer the');
+  lines.push('platform\'s source-controlled or native packaging path when one is available.');
+  lines.push('Direct record or API edits are best for existing deployments, live tuning,');
+  lines.push('or blocked packaging paths. Document fallback reasons in `PROGRESS.md`.');
+  lines.push('');
 
   lines.push('For each agent:');
   lines.push('1. Review the agent spec in `references/agent-specifications.md`');
@@ -1831,10 +1841,22 @@ function buildGettingStarted(input: SkillRenderInput): string {
     lines.push('It contains the connection verification steps, deployment sequence, platform');
     lines.push('patterns, and debugging guidance. Follow it for all platform-specific work.');
     lines.push('The deployment sequence adapts to the access level the user provides.');
+    lines.push('');
+    lines.push('Before creating a new app or first deployment, follow the expert skill\'s');
+    lines.push('deployment-path decision gate. Prefer the platform\'s source-controlled or');
+    lines.push('native packaging path when the expert skill recommends one. Use direct record');
+    lines.push('or API edits mainly for existing deployments, live tuning, or blocked packaging');
+    lines.push('paths. If you choose a fallback, document the reason in `PROGRESS.md`.');
   } else if (!input.baseSkill) {
     lines.push('If `references/deployment-guide-*.md` files are present, read those for');
     lines.push('platform-specific tooling, deployment sequence, and gotchas.');
   }
+  lines.push('');
+  lines.push('deployment-path decision checkpoint: before creating a new app or first deployment,');
+  lines.push('choose the platform\'s source-controlled or native packaging path when one is');
+  lines.push('available. Use direct record or API edits mainly for existing deployments,');
+  lines.push('live tuning, or blocked packaging paths. If you choose a fallback, document');
+  lines.push('the reason in `PROGRESS.md`.');
   lines.push('');
   lines.push('**B. User wants to build from scratch** (custom code, open-source frameworks):');
   lines.push('Help them choose a framework based on the blueprint architecture. Search the web');

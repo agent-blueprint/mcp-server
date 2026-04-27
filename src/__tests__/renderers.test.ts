@@ -1157,6 +1157,13 @@ describe('renderSkillDirectory with implementation state only', () => {
     expect(guide).toContain('CURRENT-STATE.md');
   });
 
+  it('return-visit GETTING-STARTED.md includes deployment path decision guidance', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('deployment-path decision');
+    expect(guide).toContain('PROGRESS.md');
+  });
+
   it('return-visit Step 5 has MCP tool examples', () => {
     const files = renderSkillDirectory(stateOnlyInput);
     const guide = files.get('GETTING-STARTED.md')!;
@@ -1201,6 +1208,13 @@ describe('renderSkillDirectory with progress only', () => {
     const guide = files.get('GETTING-STARTED.md')!;
     expect(guide).not.toContain('CONTINUING AN IMPLEMENTATION');
     expect(guide).toContain('YOU ARE THE IMPLEMENTER');
+  });
+
+  it('GETTING-STARTED.md includes deployment path decision guidance', () => {
+    const files = renderSkillDirectory(progressOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('deployment-path decision');
+    expect(guide).toContain('PROGRESS.md');
   });
 
   it('evaluation-criteria.md is enriched with Actual columns', () => {
