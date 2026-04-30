@@ -1661,22 +1661,22 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
     lines.push('For new apps or first deployments, re-check its deployment-path decision');
     lines.push('gate before creating more records. Use direct record or API edits mainly');
     lines.push('for existing deployments, live tuning, or blocked packaging paths. If you');
-    lines.push('choose a fallback, document the reason in `PROGRESS.md` before proceeding.');
+    lines.push('choose a fallback, document the reason in blueprint-local `PROGRESS.md` before proceeding.');
     lines.push('');
   }
 
   lines.push('deployment-path decision checkpoint: before creating new app records, prefer the');
   lines.push('platform\'s source-controlled or native packaging path when one is available.');
   lines.push('Direct record or API edits are best for existing deployments, live tuning,');
-  lines.push('or blocked packaging paths. Document fallback reasons in `PROGRESS.md`.');
+  lines.push('or blocked packaging paths. Document fallback reasons in blueprint-local `PROGRESS.md`.');
   lines.push('');
 
-  lines.push('For each agent:');
-  lines.push('1. Review the agent spec in `references/agent-specifications.md`');
-  lines.push('2. Build the agent with its tools and instructions');
+  lines.push('For the next pilot slice or agent:');
+  lines.push('1. Review the spec in `SKILL.md` and `references/agent-specifications.md`');
+  lines.push('2. Build the smallest executable slice that proves a useful path');
   lines.push('3. Test and iterate until behavior matches the spec');
-  lines.push('4. Update `implementation-state.yaml` with status and platform artifact');
-  lines.push('5. Move to the next agent');
+  lines.push('4. Update local `implementation-state.yaml` with status and platform artifact');
+  lines.push('5. Ask before syncing demo/test state back to Agent Blueprint');
   lines.push('');
 
   // Step 4
@@ -1695,7 +1695,9 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   // Step 5
   lines.push('## Step 5: Sync your progress');
   lines.push('');
-  lines.push('After implementing each agent or making significant changes, sync immediately:');
+  lines.push('After implementing each agent or making significant changes, update local');
+  lines.push('`implementation-state.yaml`. In demo/test mode, ask the user before syncing');
+  lines.push('state back to Agent Blueprint.');
   lines.push('');
   lines.push('**MCP tool** (preferred):');
   lines.push('');
@@ -1703,7 +1705,7 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push(`      blueprintId: "${input.blueprintId}"`);
   lines.push('      stateData: <contents of implementation-state.yaml as JSON>');
   lines.push('');
-  lines.push('**CLI**:');
+  lines.push('**CLI** (after user approval in demo/test mode):');
   lines.push('');
   lines.push(`    agentblueprint sync --blueprint ${input.blueprintId}`);
   lines.push('');
@@ -1716,6 +1718,7 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push('          actualValue: "measured value"');
   lines.push('');
   lines.push('See `AGENTS.md` for trigger points, deviation rules, and full sync guidance.');
+  lines.push('For demo/test implementations, ask before using MCP or CLI sync.');
   lines.push('');
   lines.push('**Claude Code users**: See `hooks/claude-code-sync.json` for a Stop hook that');
   lines.push('reminds you to sync when implementation-state.yaml has unsynced changes.');
@@ -1784,6 +1787,9 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('  One fix, one alternative, then ask. Do not spiral.');
   lines.push('- **Verify before presenting.** Never give the user a URL, path, or command');
   lines.push('  you have not verified against the actual platform instance.');
+  lines.push('- **Ask before high-impact actions.** Get explicit approval before running');
+  lines.push('  background scripts, production writes, credential changes, cleanup/deletion,');
+  lines.push('  or syncing demo/test state back to Agent Blueprint.');
   lines.push('');
 
   // Staleness warnings
@@ -1846,7 +1852,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
     lines.push('deployment-path decision gate. Prefer the platform\'s source-controlled or');
     lines.push('native packaging path when the expert skill recommends one. Use direct record');
     lines.push('or API edits mainly for existing deployments, live tuning, or blocked packaging');
-    lines.push('paths. If you choose a fallback, document the reason in `PROGRESS.md`.');
+    lines.push('paths. If you choose a fallback, document the reason in blueprint-local `PROGRESS.md`.');
   } else if (!input.baseSkill) {
     lines.push('If `references/deployment-guide-*.md` files are present, read those for');
     lines.push('platform-specific tooling, deployment sequence, and gotchas.');
@@ -1856,7 +1862,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('choose the platform\'s source-controlled or native packaging path when one is');
   lines.push('available. Use direct record or API edits mainly for existing deployments,');
   lines.push('live tuning, or blocked packaging paths. If you choose a fallback, document');
-  lines.push('the reason in `PROGRESS.md`.');
+  lines.push('the reason in blueprint-local `PROGRESS.md`.');
   lines.push('');
   lines.push('**B. User wants to build from scratch** (custom code, open-source frameworks):');
   lines.push('Help them choose a framework based on the blueprint architecture. Search the web');
@@ -1876,8 +1882,9 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 3
   lines.push('## Step 3: Build and validate the pilot');
   lines.push('');
-  lines.push('Check the Phase 1 section in `SKILL.md` for pilot scope.');
-  lines.push('Build the lead agent first. **Do not expand to remaining agents until the');
+  lines.push('Check the Phase 1/Pilot sections in `SKILL.md` and');
+  lines.push('`references/agent-specifications.md` for pilot scope.');
+  lines.push('Build the smallest executable pilot slice first. **Do not expand to remaining agents until the');
   lines.push('pilot is fully working with real data.** This is a gate, not a suggestion.');
   lines.push('');
   if (input.vendorSkill) {
@@ -1893,7 +1900,9 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('**Phase A: Scaffold and validate orchestration.**');
   lines.push('1. Create an application container for the pilot (project, workspace, or whatever');
   lines.push('   your platform uses to group related agents). State your intent to the user.');
-  lines.push('2. Build the first worker agent with its tools and instructions.');
+  lines.push('2. Build the smallest executable pilot slice: the minimum native workflow or');
+  lines.push('   orchestrator plus the worker agent(s), tools, and instructions needed to');
+  lines.push('   prove the first useful path.');
   lines.push('3. Use simulation scripts to validate the LLM orchestration (tool chaining,');
   lines.push('   parameter passing, sequencing). This proves the agent can chain tools correctly.');
   lines.push('4. **Test before proceeding.** Invoke the agent programmatically, read the execution');
@@ -1950,7 +1959,7 @@ function buildGettingStarted(input: SkillRenderInput): string {
   // Step 5
   lines.push('## Step 5: Track progress and close the loop');
   lines.push('');
-  lines.push('As you implement each agent, update `implementation-state.yaml`:');
+  lines.push('As you implement each agent, update local `implementation-state.yaml`:');
   lines.push('');
   lines.push('1. Set the agent\'s `status` to `in_progress` when you start, `implemented` when done.');
   lines.push('2. Record the `platform_artifact` (sys_id, function name, service URL, etc.).');
@@ -1959,9 +1968,10 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('5. Update `overall_status` as you progress.');
   lines.push('6. Fill in the `platform` section with the actual platform, version, and environment.');
   lines.push('');
-  lines.push('### Sync trigger points');
+  lines.push('### Local update trigger points');
   lines.push('');
-  lines.push('Sync after each of these events (do not wait until the end):');
+  lines.push('Update local `implementation-state.yaml` after each of these events');
+  lines.push('(do not wait until the end):');
   lines.push('- After implementing an agent');
   lines.push('- After connecting an integration');
   lines.push('- After modifying an agent\'s behavior');
@@ -1969,13 +1979,16 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('');
   lines.push('### How to sync');
   lines.push('');
+  lines.push('In demo/test mode, ask the user before syncing local state back to Agent');
+  lines.push('Blueprint. Sync only after approval.');
+  lines.push('');
   lines.push('**MCP tool** (preferred when Agent Blueprint MCP server is connected):');
   lines.push('');
   lines.push('    Use the sync_implementation_state tool with:');
   lines.push(`      blueprintId: "${input.blueprintId}"`);
   lines.push('      stateData: <contents of implementation-state.yaml as JSON>');
   lines.push('');
-  lines.push('**CLI**:');
+  lines.push('**CLI** (after approval in demo/test mode):');
   lines.push('');
   lines.push(`    agentblueprint sync --blueprint ${input.blueprintId}`);
   lines.push('');

@@ -824,6 +824,35 @@ describe('GETTING-STARTED.md implementation state reference', () => {
     const guide = files.get('GETTING-STARTED.md')!;
     expect(guide).toContain('agentblueprint sync');
   });
+
+  it('does not reference missing implementation roadmap files', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).not.toContain('references/implementation-roadmap.md');
+  });
+
+  it('starts with the smallest executable pilot slice', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('smallest executable pilot slice');
+    expect(guide).not.toContain('Build the first worker agent');
+  });
+
+  it('requires approval before demo or test sync', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('ask the user before syncing local state back to Agent');
+    expect(guide).toContain('after approval in demo/test mode');
+  });
+
+  it('requires approval before high-impact actions', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('background scripts');
+    expect(guide).toContain('production writes');
+    expect(guide).toContain('credential changes');
+    expect(guide).toContain('cleanup/deletion');
+  });
 });
 
 describe('GETTING-STARTED.md sync enhancements', () => {
@@ -1162,6 +1191,18 @@ describe('renderSkillDirectory with implementation state only', () => {
     const guide = files.get('GETTING-STARTED.md')!;
     expect(guide).toContain('deployment-path decision');
     expect(guide).toContain('PROGRESS.md');
+  });
+
+  it('return-visit GETTING-STARTED.md avoids missing roadmap references', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).not.toContain('references/implementation-roadmap.md');
+  });
+
+  it('return-visit GETTING-STARTED.md keeps sync gated in demo or test mode', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('ask the user before syncing');
   });
 
   it('return-visit Step 5 has MCP tool examples', () => {
