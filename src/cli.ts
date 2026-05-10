@@ -50,6 +50,7 @@ Usage:
   agentblueprint download <id> [--org <id>] [--dir <path>] [--platform <p>]
                                                         Download as Agent Skills
   agentblueprint sync [<file>] [--blueprint <id>] [--org <id>]  Sync implementation state
+  agentblueprint profile update --from <file> [--org <id>]  Update profile from JSON
   agentblueprint --help                                 Show this help
   agentblueprint --version                              Show version
 
@@ -276,6 +277,61 @@ async function cmdSync(args: string[]): Promise<void> {
   process.stdout.write(result.content[0].text + '\n');
 }
 
+async function cmdProfile(args: string[]): Promise<void> {
+  const subcommand = args[0];
+  if (subcommand !== 'update') {
+    console.error('Usage: agentblueprint profile update --from <file> [--org <id>]');
+    process.exit(1);
+  }
+
+  const rest = args.slice(1);
+  const fromFile = findFlag(rest, '--from');
+  const token = findFlag(rest, '--token');
+  const customerOrgId = findFlag(rest, '--org');
+
+  if (!fromFile) {
+    console.error('Error: --from <file> is required.');
+    console.error('Usage: agentblueprint profile update --from <file> [--org <id>]');
+    process.exit(1);
+  }
+
+  const fs = await import('node:fs');
+  if (!fs.existsSync(fromFile)) {
+    console.error(`Error: File not found: ${fromFile}`);
+    process.exit(1);
+  }
+
+  const content = fs.readFileSync(fromFile, 'utf-8');
+  let fields: Record<string, unknown>;
+
+  try {
+    const parsed = JSON.parse(content);
+    // Accept either { fields: {...} } wrapper or bare fields object
+    fields = parsed.fields ?? parsed;
+  } catch {
+    console.error('Error: File must contain valid JSON.');
+    process.exit(1);
+  }
+
+  const config = loadConfig(token);
+  const client = new AgentBlueprintClient(config);
+
+  // Try update first; if no profile exists, create
+  try {
+    const result = await client.updateBusinessProfile(fields, customerOrgId);
+    console.error('Business profile updated.');
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+  } catch (err: any) {
+    if (err?.status === 404 || err?.message?.includes('404')) {
+      const result = await client.createBusinessProfile(fields, customerOrgId);
+      console.error('Business profile created.');
+      process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    } else {
+      throw err;
+    }
+  }
+}
+
 async function startMcpServer(args: string[]): Promise<void> {
   // Dynamic import so the MCP SDK is only loaded when actually serving
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
@@ -336,6 +392,9 @@ async function main() {
         break;
       case 'sync':
         await cmdSync(rest);
+        break;
+      case 'profile':
+        await cmdProfile(rest);
         break;
       case 'serve':
         await startMcpServer(rest);

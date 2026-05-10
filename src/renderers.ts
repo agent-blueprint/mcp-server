@@ -107,6 +107,21 @@ function isPlaceholder(val: string): boolean {
   return ['—', '–', '-', 'N/A', 'n/a', 'TBD', 'null', 'undefined', 'none'].includes(val.trim());
 }
 
+/** Checks if the business profile has minimal data (fewer than 3 meaningful fields populated) */
+function isProfileSparse(bp: Record<string, unknown> | undefined): boolean {
+  if (!bp) return true;
+  const meaningfulFields = ['industry', 'size', 'revenue', 'description',
+    'technologyProfile', 'organizationalCapabilities', 'businessOperations', 'constraintsProfile'];
+  const populated = meaningfulFields.filter(f => {
+    const val = bp[f];
+    if (!val) return false;
+    if (typeof val === 'string' && val.trim() === '') return false;
+    if (typeof val === 'object' && Object.keys(val as object).length === 0) return false;
+    return true;
+  });
+  return populated.length < 3;
+}
+
 /** Strips a trailing unit suffix to prevent double-units (e.g. "3.6 months" + " months") */
 function stripTrailingUnit(val: string, unit: string): string {
   return val.replace(new RegExp(`\\s*${unit}\\s*$`, 'i'), '');
@@ -1796,6 +1811,21 @@ function buildGettingStarted(input: SkillRenderInput): string {
   const staleWarnings = buildStalenessWarnings(input);
   if (staleWarnings) {
     lines.push(staleWarnings);
+    lines.push('');
+  }
+
+  // Phase 0: Profile interview (only when profile is sparse and base skill is present)
+  if (isProfileSparse(input.businessProfileData) && input.baseSkill) {
+    lines.push('## Phase 0: Build your organization profile');
+    lines.push('');
+    lines.push('Organization context is incomplete. Before deploying agents, build a');
+    lines.push('comprehensive business profile using the interview protocol:');
+    lines.push('');
+    lines.push('1. Read `.claude/skills/agent-blueprint/references/INTERVIEW_PROTOCOL.md`');
+    lines.push('2. Follow the document-first approach: gather existing docs, extract, then interview for gaps');
+    lines.push('3. Output structured JSON for platform sync, or rewrite `references/organization-context.md` locally');
+    lines.push('');
+    lines.push('A richer profile produces better-tailored agent recommendations and more accurate financial projections.');
     lines.push('');
   }
 
