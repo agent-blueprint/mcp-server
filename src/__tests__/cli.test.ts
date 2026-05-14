@@ -73,6 +73,7 @@ describe('CLI binary', () => {
     expect(stderr).toContain('agentblueprint list');
     expect(stderr).toContain('agentblueprint get');
     expect(stderr).toContain('agentblueprint download');
+    expect(stderr).toContain('agentblueprint handoff accept');
   });
 
   it('help does not include deprecated --no-mcp or --sn-* on download line', async () => {
@@ -168,6 +169,7 @@ describe('CLI binary', () => {
   it('help includes implementation-spec and serve', async () => {
     const { stderr } = await exec('node', [CLI_PATH, '--help']);
     expect(stderr).toContain('implementation-spec');
+    expect(stderr).toContain('handoff accept');
     expect(stderr).toContain('When stdin is piped');
   });
 });

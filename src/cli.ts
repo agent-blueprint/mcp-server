@@ -7,6 +7,7 @@ import { AgentBlueprintClient } from './client.js';
 import { loadConfig, type Config } from './config.js';
 import { formatError } from './errors.js';
 import { parseDownloadArgs, runDownload } from './download.js';
+import { parseHandoffArgs, runHandoffAccept } from './handoff.js';
 import { parseSetupArgs, runSetup, validateAndSaveToken } from './setup.js';
 import { handleGetBlueprint } from './tools/get-blueprint.js';
 import { handleGetBusinessCase } from './tools/get-business-case.js';
@@ -49,6 +50,8 @@ Usage:
   agentblueprint get business-profile [--org <id>]      Business profile
   agentblueprint download <id> [--org <id>] [--dir <path>] [--platform <p>]
                                                         Download as Agent Skills
+  agentblueprint handoff accept --token <token> [--api-url <url>] [--dir <path>]
+                                                        Accept copied coding-agent handoff
   agentblueprint sync [<file>] [--blueprint <id>] [--org <id>]  Sync implementation state
   agentblueprint profile update --from <file> [--org <id>]  Update profile from JSON
   agentblueprint --help                                 Show this help
@@ -390,6 +393,15 @@ async function main() {
       case 'download':
         await cmdDownload(rest);
         break;
+      case 'handoff': {
+        const subcommand = rest[0];
+        if (subcommand !== 'accept') {
+          console.error('Usage: agentblueprint handoff accept --token <token> [--api-url <url>] [--dir <path>]');
+          process.exit(1);
+        }
+        await runHandoffAccept(parseHandoffArgs(rest.slice(1)));
+        break;
+      }
       case 'sync':
         await cmdSync(rest);
         break;
