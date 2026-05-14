@@ -156,12 +156,51 @@ describe('renderSkillDirectory', () => {
     expect(paths).toContain('references/guardrails-and-governance.md');
     expect(paths).toContain('references/evaluation-criteria.md');
     expect(paths).toContain('references/platform-connectivity.md');
+    expect(paths).toContain('references/artifact-editing.md');
+    expect(paths).toContain('editable/business-profile.update.json');
+    expect(paths).toContain('editable/use-case.update.json');
+    expect(paths).toContain('editable/blueprint.update.json');
+    expect(paths).toContain('editable/business-case.update.json');
+    expect(paths).toContain('editable/implementation-plan.update.json');
     expect(paths).toContain('GETTING-STARTED.md');
     expect(paths).toContain('scripts/validate-spec.sh');
     expect(paths).toContain('implementation-state.yaml');
     expect(paths).toContain('AGENTS.md');
     expect(paths).toContain('hooks/claude-code-sync.json');
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(20);
+  });
+
+  it('editable JSON templates parse and include blueprint IDs where needed', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const templatePaths = [
+      'editable/business-profile.update.json',
+      'editable/use-case.update.json',
+      'editable/blueprint.update.json',
+      'editable/business-case.update.json',
+      'editable/implementation-plan.update.json',
+    ];
+
+    for (const path of templatePaths) {
+      expect(() => JSON.parse(files.get(path)!)).not.toThrow();
+    }
+
+    expect(JSON.parse(files.get('editable/business-profile.update.json')!)).toHaveProperty('fields');
+    for (const path of templatePaths.slice(1)) {
+      expect(JSON.parse(files.get(path)!)).toMatchObject({ blueprintId: 'bp-123' });
+    }
+  });
+
+  it('artifact editing reference maps templates to MCP write tools', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const reference = files.get('references/artifact-editing.md')!;
+
+    expect(reference).toContain('update_business_profile');
+    expect(reference).toContain('update_use_case');
+    expect(reference).toContain('update_blueprint');
+    expect(reference).toContain('update_business_case');
+    expect(reference).toContain('update_implementation_plan');
+    expect(reference).toContain('recalculate_financials');
+    expect(reference).toContain('Markdown files in this export are readable snapshots');
   });
 
   it('SKILL.md starts with YAML frontmatter', () => {
@@ -373,7 +412,7 @@ describe('renderSkillDirectory with missing data', () => {
     };
     // Should not throw
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(20);
   });
 
   it('evaluation-criteria.md renders with full data', () => {
@@ -887,6 +926,16 @@ describe('GETTING-STARTED.md sync enhancements', () => {
     const guide = files.get('GETTING-STARTED.md')!;
     expect(guide).toContain('bp-123');
   });
+
+  it('points coding agents to profile and artifact edit templates', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('Maintain the business profile');
+    expect(guide).toContain('Ad-hoc artifact edits');
+    expect(guide).toContain('editable/business-profile.update.json');
+    expect(guide).toContain('references/artifact-editing.md');
+    expect(guide).toContain('MCP/CLI writes are the source of truth');
+  });
 });
 
 describe('AGENTS.md', () => {
@@ -921,6 +970,17 @@ describe('AGENTS.md', () => {
     const agents = files.get('AGENTS.md')!;
     expect(agents).toContain('deviations');
     expect(agents).toContain('implementation-state.yaml');
+  });
+
+  it('contains business profile and ad-hoc artifact edit guidance', () => {
+    const files = renderSkillDirectory(minimalInput);
+    const agents = files.get('AGENTS.md')!;
+    expect(agents).toContain('Maintain the business profile');
+    expect(agents).toContain('Ad-hoc artifact edits');
+    expect(agents).toContain('references/artifact-editing.md');
+    expect(agents).toContain('editable/*.json');
+    expect(agents).toContain('update_business_profile');
+    expect(agents).toContain('recalculate_financials');
   });
 });
 
@@ -1088,21 +1148,21 @@ const twoAgentState: ImplementationStateResponse = {
 };
 
 describe('renderSkillDirectory with no reality data', () => {
-  it('produces 13 files with null implementationState and progress', () => {
+  it('produces 20 files with null implementationState and progress', () => {
     const input: SkillRenderInput = {
       ...minimalInput,
       implementationState: null,
       progress: null,
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(20);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
   });
 
-  it('produces 14 files with undefined implementationState', () => {
+  it('produces 20 files with undefined implementationState', () => {
     const input: SkillRenderInput = { ...minimalInput };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(20);
   });
 
   it('treats all-not_started state as no data', () => {
@@ -1117,7 +1177,7 @@ describe('renderSkillDirectory with no reality data', () => {
       },
     };
     const files = renderSkillDirectory(input);
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(20);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
   });
 });
@@ -1128,9 +1188,9 @@ describe('renderSkillDirectory with implementation state only', () => {
     implementationState: sampleImplementationState,
   };
 
-  it('produces 16 files (14 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
+  it('produces 22 files (20 + CURRENT-STATE.md + RECOMMENDATIONS.md)', () => {
     const files = renderSkillDirectory(stateOnlyInput);
-    expect(files.size).toBe(16);
+    expect(files.size).toBe(22);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });
@@ -1224,6 +1284,15 @@ describe('renderSkillDirectory with implementation state only', () => {
     expect(guide).toContain('hooks/claude-code-sync.json');
   });
 
+  it('return-visit guide points to artifact editing templates', () => {
+    const files = renderSkillDirectory(stateOnlyInput);
+    const guide = files.get('GETTING-STARTED.md')!;
+    expect(guide).toContain('Maintain the business profile and artifacts');
+    expect(guide).toContain('editable/*.json');
+    expect(guide).toContain('references/artifact-editing.md');
+    expect(guide).toContain('update_business_profile');
+  });
+
   it('evaluation-criteria.md is unchanged without progress', () => {
     const files = renderSkillDirectory(stateOnlyInput);
     const evalCriteria = files.get('references/evaluation-criteria.md')!;
@@ -1238,9 +1307,9 @@ describe('renderSkillDirectory with progress only', () => {
     progress: sampleProgress,
   };
 
-  it('produces 14 files (no CURRENT-STATE.md without implementation state)', () => {
+  it('produces 20 files (no CURRENT-STATE.md without implementation state)', () => {
     const files = renderSkillDirectory(progressOnlyInput);
-    expect(files.size).toBe(14);
+    expect(files.size).toBe(20);
     expect(files.has('CURRENT-STATE.md')).toBe(false);
   });
 
@@ -1274,9 +1343,9 @@ describe('renderSkillDirectory with full reality data', () => {
     progress: sampleProgress,
   };
 
-  it('produces 16 files', () => {
+  it('produces 22 files', () => {
     const files = renderSkillDirectory(fullRealityInput);
-    expect(files.size).toBe(16);
+    expect(files.size).toBe(22);
     expect(files.has('CURRENT-STATE.md')).toBe(true);
     expect(files.has('RECOMMENDATIONS.md')).toBe(true);
   });
@@ -1371,7 +1440,7 @@ describe('base skill support', () => {
 
   it('increases file count by number of base skill files', () => {
     const files = renderSkillDirectory(baseSkillInput);
-    expect(files.size).toBe(16); // 14 base + 2 base skill files
+    expect(files.size).toBe(22); // 20 base + 2 base skill files
   });
 
   it('SKILL.md body mentions base skill location', () => {

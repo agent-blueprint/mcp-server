@@ -95,6 +95,10 @@ function rec(val: unknown): Record<string, unknown> {
   return val && typeof val === 'object' && !Array.isArray(val) ? (val as Record<string, unknown>) : {};
 }
 
+function jsonTemplate(value: Record<string, unknown>): string {
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
 /** Returns string representation for numbers, passes through strings, '' otherwise */
 function numStr(val: unknown): string {
   if (typeof val === 'number') return String(val);
@@ -1686,6 +1690,22 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   lines.push('or blocked packaging paths. Document fallback reasons in blueprint-local `PROGRESS.md`.');
   lines.push('');
 
+  lines.push('## Maintain the business profile and artifacts');
+  lines.push('');
+  lines.push('Markdown files are readable snapshots. MCP/CLI writes are the source of truth.');
+  lines.push('When implementation reveals new profile facts or artifact corrections, update');
+  lines.push('Agent Blueprint with a focused patch:');
+  lines.push('');
+  lines.push('1. Read the current markdown context in `references/` and `CURRENT-STATE.md`');
+  lines.push('2. Fill in the matching template in `editable/*.json`');
+  lines.push('3. Call the matching MCP write tool, such as `update_business_profile`,');
+  lines.push('   `update_use_case`, `update_blueprint`, `update_business_case`, or');
+  lines.push('   `update_implementation_plan`');
+  lines.push('4. Re-download this export after staleness changes or recalculations');
+  lines.push('');
+  lines.push('See `references/artifact-editing.md` for the full workflow and tool mapping.');
+  lines.push('');
+
   lines.push('For the next pilot slice or agent:');
   lines.push('1. Review the spec in `SKILL.md` and `references/agent-specifications.md`');
   lines.push('2. Build the smallest executable slice that proves a useful path');
@@ -1828,6 +1848,24 @@ function buildGettingStarted(input: SkillRenderInput): string {
     lines.push('A richer profile produces better-tailored agent recommendations and more accurate financial projections.');
     lines.push('');
   }
+
+  lines.push('## Maintain the business profile');
+  lines.push('');
+  lines.push('If you learn new facts while implementing, update Agent Blueprint instead of');
+  lines.push('only editing local markdown snapshots.');
+  lines.push('');
+  lines.push('1. Read `references/organization-context.md` and the current implementation context');
+  lines.push('2. Fill in `editable/business-profile.update.json` with only verified changes');
+  lines.push('3. Call the `update_business_profile` MCP tool with the `fields` object');
+  lines.push('4. Re-download this export when staleness changes affect downstream artifacts');
+  lines.push('');
+  lines.push('## Ad-hoc artifact edits');
+  lines.push('');
+  lines.push('Markdown files are readable snapshots. MCP/CLI writes are the source of truth.');
+  lines.push('For piecemeal edits to use cases, blueprints, business cases, or implementation');
+  lines.push('plans, follow `references/artifact-editing.md` and use the templates in');
+  lines.push('`editable/*.json`.');
+  lines.push('');
 
   // Step 1
   lines.push('## Step 1: Understand the architecture');
@@ -2236,6 +2274,289 @@ function buildPlatformConnectivity(): string {
 }
 
 // =============================================================================
+// ARTIFACT EDITING REFERENCE + JSON TEMPLATES
+// =============================================================================
+
+function buildArtifactEditingReference(input: SkillRenderInput): string {
+  const lines: string[] = [
+    '# Artifact Editing Reference',
+    '',
+    '> Markdown files in this export are readable snapshots. Agent Blueprint MCP/CLI',
+    '> writes are the source of truth for saved changes.',
+    '',
+    `Blueprint ID: \`${input.blueprintId}\``,
+    '',
+    '## Workflow',
+    '',
+    '1. Read the current markdown context in `references/` and `SKILL.md`.',
+    '2. Prepare a focused JSON patch using the matching file in `editable/`.',
+    '3. Call the matching MCP write tool with only the fields or sections that changed.',
+    '4. If the tool reports downstream staleness, refresh the affected artifact before relying on it.',
+    '5. Re-download this blueprint export after important changes so local markdown snapshots match Agent Blueprint.',
+    '',
+    'Do not edit markdown snapshots as the canonical record. Local markdown edits are notes only unless they are written back through MCP or CLI.',
+    '',
+    '## Tool Mapping',
+    '',
+    '| Change area | Template | Write tool |',
+    '|-------------|----------|------------|',
+    '| Profile facts, systems, capabilities, operations, constraints | `editable/business-profile.update.json` | `update_business_profile` |',
+    '| Use case, pain points, outcomes, success metrics | `editable/use-case.update.json` | `update_use_case` |',
+    '| Agent team, architecture, phases, success criteria | `editable/blueprint.update.json` | `update_blueprint` |',
+    '| ROI narrative, benefits, risks, recommendation | `editable/business-case.update.json` | `update_business_case`, then `recalculate_financials` when numbers need refresh |',
+    '| Implementation sequencing, epics, resources, agent specs | `editable/implementation-plan.update.json` | `update_implementation_plan` |',
+    '',
+    '## Patch Rules',
+    '',
+    '- Keep patches small. Include only the top-level fields or sections you intend to change.',
+    '- Delete placeholder keys before submitting if you are not changing them.',
+    '- Preserve IDs, agent names, phase names, and metric names unless the user explicitly asks to rename them.',
+    '- For financial narrative edits, call `update_business_case` first. Call `recalculate_financials` only when numeric assumptions or ROI inputs changed.',
+    '- Unknown keys may be ignored or preserved depending on the endpoint. Prefer the keys shown in the templates.',
+    '',
+    '## MCP Examples',
+    '',
+    'Business profile:',
+    '',
+    '```json',
+    '{',
+    '  "fields": {',
+    '    "companyName": "Replace with verified company name",',
+    '    "technology": { "systems": [] }',
+    '  }',
+    '}',
+    '```',
+    '',
+    'Blueprint section:',
+    '',
+    '```json',
+    '{',
+    `  "blueprintId": "${input.blueprintId}",`,
+    '  "sections": {',
+    '    "executiveSummary": "Replace with the revised summary"',
+    '  }',
+    '}',
+    '```',
+    '',
+    'After a successful write, inspect the response for `downstreamStale` or staleness warnings. Refresh or recalculate those artifacts before treating the export as current.',
+  ];
+
+  return lines.join('\n');
+}
+
+function buildBusinessProfileUpdateTemplate(): string {
+  return jsonTemplate({
+    _instructions: 'Replace placeholders, delete unused keys, then call update_business_profile with the fields object. Use only verified facts.',
+    fields: {
+      companyName: '<replace with verified company name>',
+      industry: '<replace with industry>',
+      size: '<replace with employee or company size>',
+      revenue: '<replace with revenue range if known>',
+      currency: 'USD',
+      description: '<replace with concise business description>',
+      companyWebsite: '<replace with company website>',
+      technology: {
+        systems: [
+          {
+            name: '<replace with system name>',
+            category: '<replace with system category>',
+            criticality: '<replace with criticality>',
+          },
+        ],
+      },
+      capabilities: {
+        technicalTeam: {
+          developmentCapacity: '<replace with capacity if known>',
+          aiMlExperience: '<replace with AI/ML experience level>',
+        },
+      },
+      operations: {
+        keyProcesses: [
+          {
+            name: '<replace with process name>',
+            volume: '<replace with process volume if known>',
+          },
+        ],
+        painPoints: ['<replace with operational pain point>'],
+      },
+      constraints: {
+        budget: {
+          totalAiBudget: '<replace with budget if known>',
+        },
+        timeline: {
+          preferredTimeline: '<replace with timeline if known>',
+        },
+      },
+      strategicInitiatives: [
+        {
+          title: '<replace with initiative title>',
+          description: '<replace with initiative description>',
+        },
+      ],
+    },
+  });
+}
+
+function buildUseCaseUpdateTemplate(input: SkillRenderInput): string {
+  return jsonTemplate({
+    _instructions: 'Replace placeholders, delete unused sections, then call update_use_case with blueprintId and sections.',
+    blueprintId: input.blueprintId,
+    sections: {
+      title: '<replace with use case title>',
+      description: '<replace with concise use case description>',
+      businessChallenge: '<replace with updated business challenge>',
+      description5Ws: {
+        who: '<replace with impacted people or teams>',
+        what: '<replace with work being changed>',
+        where: '<replace with business area or systems>',
+        when: '<replace with timing or trigger>',
+        why: '<replace with reason this matters>',
+      },
+      currentPainPoints: ['<replace with pain point>'],
+      desiredBusinessOutcomes: ['<replace with desired outcome>'],
+      processDocumentation: {
+        steps: [
+          {
+            stepNumber: 1,
+            description: '<replace with current process step>',
+            performer: '<replace with performer>',
+          },
+        ],
+      },
+      transformationStory: {
+        situation: '<replace with current situation>',
+        complication: '<replace with complication>',
+        resolution: '<replace with desired resolution>',
+      },
+      typedSuccessMetrics: [
+        {
+          metric: '<replace with metric name>',
+          target: '<replace with target>',
+        },
+      ],
+      organizationalConstraints: ['<replace with constraint>'],
+      affectedDepartments: ['<replace with department>'],
+    },
+  });
+}
+
+function buildBlueprintUpdateTemplate(input: SkillRenderInput): string {
+  return jsonTemplate({
+    _instructions: 'Replace placeholders, delete unused sections, then call update_blueprint with blueprintId and sections. Top-level sections are shallow-merged.',
+    blueprintId: input.blueprintId,
+    sections: {
+      executiveSummary: '<replace with revised executive summary>',
+      agenticPattern: '<replace with agentic pattern if changed>',
+      enhancedDigitalTeam: [
+        {
+          name: '<replace with agent name>',
+          role: '<replace with agent role>',
+          agentRole: '<replace with orchestration role>',
+          responsibilities: ['<replace with responsibility>'],
+        },
+      ],
+      phases: [
+        {
+          name: '<replace with phase name>',
+          phaseGoal: '<replace with phase goal>',
+          durationWeeks: '<replace with duration in weeks>',
+        },
+      ],
+      architectureRationale: {
+        whyAgentic: ['<replace with rationale>'],
+      },
+      successCriteria: {
+        kpis: [
+          {
+            name: '<replace with KPI name>',
+            target: '<replace with target>',
+          },
+        ],
+      },
+    },
+  });
+}
+
+function buildBusinessCaseUpdateTemplate(input: SkillRenderInput): string {
+  return jsonTemplate({
+    _instructions: 'Replace placeholders, delete unused sections, then call update_business_case with blueprintId and sections. If numeric assumptions or ROI inputs changed, call recalculate_financials next.',
+    blueprintId: input.blueprintId,
+    sections: {
+      executiveSummary: {
+        purpose: '<replace with revised purpose>',
+        valueProposition: '<replace with revised value proposition>',
+      },
+      businessContext: {
+        problemStatement: '<replace with updated problem statement>',
+      },
+      objectives: {
+        successMetrics: [
+          {
+            metric: '<replace with metric name>',
+            targetValue: '<replace with target value>',
+          },
+        ],
+      },
+      proposedSolution: {
+        summary: '<replace with solution summary>',
+      },
+      benefits: {
+        tangibleBenefits: {
+          processEfficiency: '<replace with benefit>',
+        },
+      },
+      risks: {
+        implementationRisks: [
+          {
+            title: '<replace with risk title>',
+            severity: '<replace with severity>',
+            impact: '<replace with impact>',
+          },
+        ],
+      },
+      recommendation: {
+        summary: '<replace with recommendation>',
+      },
+    },
+  });
+}
+
+function buildImplementationPlanUpdateTemplate(input: SkillRenderInput): string {
+  return jsonTemplate({
+    _instructions: 'Replace placeholders, delete unused sections, then call update_implementation_plan with blueprintId and sections.',
+    blueprintId: input.blueprintId,
+    sections: {
+      projectOverview: {
+        summary: '<replace with updated implementation summary>',
+      },
+      epics: [
+        {
+          name: '<replace with epic name>',
+          description: '<replace with epic description>',
+          phase: '<replace with phase>',
+        },
+      ],
+      dependencies: ['<replace with dependency>'],
+      resources: {
+        team: ['<replace with required role or team>'],
+      },
+      risks: [
+        {
+          title: '<replace with implementation risk>',
+          mitigation: '<replace with mitigation>',
+        },
+      ],
+      agentSpecifications: [
+        {
+          name: '<replace with agent name>',
+          implementationNotes: '<replace with implementation notes>',
+        },
+      ],
+    },
+  });
+}
+
+// =============================================================================
 // IMPLEMENTATION STATE TEMPLATE
 // =============================================================================
 
@@ -2549,6 +2870,34 @@ function buildAgentsMd(input: SkillRenderInput): string {
   lines.push('## Blueprint ID');
   lines.push('');
   lines.push(`    ${bpId}`);
+  lines.push('');
+
+  lines.push('## Source of truth for edits');
+  lines.push('');
+  lines.push('Markdown files in this export are readable snapshots. Agent Blueprint MCP/CLI');
+  lines.push('writes are the source of truth for saved profile and artifact changes.');
+  lines.push('Use `references/artifact-editing.md` and `editable/*.json` to prepare focused');
+  lines.push('patches, then write them back with MCP tools.');
+  lines.push('');
+
+  lines.push('## Maintain the business profile');
+  lines.push('');
+  lines.push('When you discover new profile facts, systems, capabilities, operations,');
+  lines.push('constraints, or strategic initiatives:');
+  lines.push('1. Read `references/organization-context.md`');
+  lines.push('2. Fill in `editable/business-profile.update.json`');
+  lines.push('3. Call `update_business_profile` with the `fields` object');
+  lines.push('4. Re-download or refresh stale artifacts before continuing');
+  lines.push('');
+
+  lines.push('## Ad-hoc artifact edits');
+  lines.push('');
+  lines.push('For piecemeal corrections, use the matching template and MCP write tool:');
+  lines.push('- Use case changes: `editable/use-case.update.json` -> `update_use_case`');
+  lines.push('- Blueprint changes: `editable/blueprint.update.json` -> `update_blueprint`');
+  lines.push('- Business case changes: `editable/business-case.update.json` -> `update_business_case`');
+  lines.push('- Financial number changes: `update_business_case`, then `recalculate_financials`');
+  lines.push('- Implementation plan changes: `editable/implementation-plan.update.json` -> `update_implementation_plan`');
   lines.push('');
 
   lines.push('## When to sync implementation state');
@@ -2868,6 +3217,14 @@ export function renderSkillDirectory(input: SkillRenderInput): Map<string, strin
   files.set('references/guardrails-and-governance.md', buildGuardrailsAndGovernance(input));
   files.set('references/evaluation-criteria.md', buildEvaluationCriteria(input));
   files.set('references/platform-connectivity.md', buildPlatformConnectivity());
+  files.set('references/artifact-editing.md', buildArtifactEditingReference(input));
+
+  // Editable JSON helper templates (not canonical state)
+  files.set('editable/business-profile.update.json', buildBusinessProfileUpdateTemplate());
+  files.set('editable/use-case.update.json', buildUseCaseUpdateTemplate(input));
+  files.set('editable/blueprint.update.json', buildBlueprintUpdateTemplate(input));
+  files.set('editable/business-case.update.json', buildBusinessCaseUpdateTemplate(input));
+  files.set('editable/implementation-plan.update.json', buildImplementationPlanUpdateTemplate(input));
 
   // Getting Started guide
   files.set('GETTING-STARTED.md', buildGettingStarted(input));

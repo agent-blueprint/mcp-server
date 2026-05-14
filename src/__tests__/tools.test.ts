@@ -348,12 +348,18 @@ describe('handleDownloadBlueprint', () => {
 
     expect(manifest.directory).toBe('my-test-blueprint');
     expect(manifest.installHint).toContain('.agent-blueprint/');
-    expect(manifest.files).toHaveLength(14);
+    expect(manifest.files).toHaveLength(20);
 
     const filePaths = manifest.files.map((f: { path: string }) => f.path);
     expect(filePaths).toContain('SKILL.md');
     expect(filePaths).toContain('references/agent-specifications.md');
     expect(filePaths).toContain('references/financial-case.md');
+    expect(filePaths).toContain('references/artifact-editing.md');
+    expect(filePaths).toContain('editable/business-profile.update.json');
+    expect(filePaths).toContain('editable/use-case.update.json');
+    expect(filePaths).toContain('editable/blueprint.update.json');
+    expect(filePaths).toContain('editable/business-case.update.json');
+    expect(filePaths).toContain('editable/implementation-plan.update.json');
     expect(filePaths).toContain('scripts/validate-spec.sh');
     expect(filePaths).toContain('implementation-state.yaml');
 
@@ -413,7 +419,7 @@ describe('handleDownloadBlueprint', () => {
 
     expect(result.isError).toBeUndefined();
     const manifest = JSON.parse(result.content[0].text);
-    expect(manifest.files).toHaveLength(14);
+    expect(manifest.files).toHaveLength(20);
   });
 
   it('returns error when blueprint fetch fails', async () => {
