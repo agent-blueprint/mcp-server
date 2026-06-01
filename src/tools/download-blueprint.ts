@@ -20,8 +20,12 @@ export async function handleDownloadBlueprint(
     }));
 
     const skillDirs: string[] = [];
-    if (result.hasBaseSkill) skillDirs.push('.claude/skills/agent-blueprint/');
-    if (result.vendorSkillName) skillDirs.push(`.claude/skills/${result.vendorSkillName}/`);
+    if (result.hasBaseSkill) {
+      skillDirs.push('.claude/skills/agent-blueprint/', '.agents/skills/agent-blueprint/');
+    }
+    if (result.vendorSkillName) {
+      skillDirs.push(`.claude/skills/${result.vendorSkillName}/`, `.agents/skills/${result.vendorSkillName}/`);
+    }
     const skillNote = skillDirs.length > 0
       ? ` Skill files go to: ${skillDirs.join(', ')}`
       : '';
@@ -29,7 +33,7 @@ export async function handleDownloadBlueprint(
     const manifest = {
       directory: result.slug,
       files: fileList,
-      installHint: `Write these files to .agent-blueprint/${result.slug}/ and any .claude/skills/ files to the project root.${skillNote}`,
+      installHint: `Write these files to .agent-blueprint/${result.slug}/ and any .claude/skills/ or .agents/skills/ files to the project root.${skillNote}`,
     };
 
     const nextAction = getNextActionDirective({

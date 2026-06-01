@@ -369,6 +369,122 @@ describe('handleDownloadBlueprint', () => {
     expect(skillFile.content).toContain('name: my-test-blueprint');
   });
 
+  it('returns Claude Code and Codex skill files in the download manifest', async () => {
+    const fetchMock = vi.fn()
+      // getBlueprint
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          timestamp: '',
+          data: {
+            id: 'bp-1',
+            version: 1,
+            lifecycleStatus: 'generated',
+            useCaseId: null,
+            createdAt: '',
+            updatedAt: '',
+            data: {
+              title: 'Codex Ready Blueprint',
+              enhancedDigitalTeam: [{ name: 'Agent 1', role: 'Worker' }],
+            },
+          },
+        }),
+      })
+      // getBusinessCase
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          timestamp: '',
+          data: { id: 'bc-1', version: 1, blueprintId: 'bp-1', createdAt: '', updatedAt: '', data: {} },
+        }),
+      })
+      // getImplementationPlan
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          timestamp: '',
+          data: { id: 'ip-1', version: 1, blueprintId: 'bp-1', createdAt: '', updatedAt: '', data: {} },
+        }),
+      })
+      // getUseCase
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          timestamp: '',
+          data: { title: 'Test Use Case' },
+        }),
+      })
+      // getBusinessProfile
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true, timestamp: '', data: { companyName: 'Acme' } }),
+      })
+      // getBaseSkill
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          files: [
+            { path: 'SKILL.md', content: '# Base Skill' },
+            { path: 'references/DEPLOYMENT_PATTERNS.md', content: '# Deployment Patterns' },
+          ],
+        }),
+      })
+      // getImplementationState
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: () => Promise.resolve({ error: 'Not found' }),
+      })
+      // getProgress
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: () => Promise.resolve({ error: 'Not found' }),
+      })
+      // getVendorGuide('general')
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: () => Promise.resolve({ error: 'Not found' }),
+      })
+      // getVendorSkill('servicenow')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          platform: 'servicenow',
+          skillName: 'agent-blueprint-servicenow',
+          content: '# ServiceNow Skill',
+          files: [
+            { path: 'SKILL.md', content: '# ServiceNow Skill' },
+          ],
+        }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await handleDownloadBlueprint(client, { blueprintId: 'bp-1', platform: 'servicenow' });
+
+    expect(result.isError).toBeUndefined();
+    const manifest = JSON.parse(result.content[0].text);
+    const filePaths = manifest.files.map((f: { path: string }) => f.path);
+
+    expect(filePaths).toContain('.claude/skills/agent-blueprint/SKILL.md');
+    expect(filePaths).toContain('.agents/skills/agent-blueprint/SKILL.md');
+    expect(filePaths).toContain('.claude/skills/agent-blueprint-servicenow/SKILL.md');
+    expect(filePaths).toContain('.agents/skills/agent-blueprint-servicenow/SKILL.md');
+    expect(manifest.installHint).toContain('.claude/skills/');
+    expect(manifest.installHint).toContain('.agents/skills/');
+    expect(manifest.installHint).toContain('.agents/skills/agent-blueprint-servicenow/');
+    expect(result.content[1].text).toContain('.agents/skills/agent-blueprint/SKILL.md');
+  });
+
   it('handles missing artifacts gracefully', async () => {
     const fetchMock = vi.fn()
       // getBlueprint

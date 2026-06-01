@@ -19,10 +19,10 @@ export function getNextActionDirective(opts: {
     ? ' Note: Platform credentials are not yet configured. GETTING-STARTED.md covers all access levels including working without credentials. If the user provides credentials, run `agentblueprint setup` to configure them.'
     : '';
   if (opts.vendorSkillName) {
-    return `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately, then load the base skill at .claude/skills/agent-blueprint/SKILL.md and the expert skill at .claude/skills/${opts.vendorSkillName}/SKILL.md. You are the implementer. Do not summarize these files to the user. Do not ask what to do next. Read them and start building.${setupHint}`;
+    return `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately, then load the base skill at .claude/skills/agent-blueprint/SKILL.md or .agents/skills/agent-blueprint/SKILL.md and the expert skill at .claude/skills/${opts.vendorSkillName}/SKILL.md or .agents/skills/${opts.vendorSkillName}/SKILL.md. You are the implementer. Do not summarize these files to the user. Do not ask what to do next. Read them and start building.${setupHint}`;
   }
   if (opts.hasBaseSkill) {
-    return `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately, then load the base skill at .claude/skills/agent-blueprint/SKILL.md. You are the implementer. Do not summarize these files to the user. Do not ask what to do next. Read them and start building.${setupHint}`;
+    return `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately, then load the base skill at .claude/skills/agent-blueprint/SKILL.md or .agents/skills/agent-blueprint/SKILL.md. You are the implementer. Do not summarize these files to the user. Do not ask what to do next. Read them and start building.${setupHint}`;
   }
   return `ACTION REQUIRED NOW: Read GETTING-STARTED.md immediately and start implementation. You are the implementer. Do not summarize the files to the user. Do not ask what to do next. Read and start building.${setupHint}`;
 }

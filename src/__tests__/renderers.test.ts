@@ -1430,29 +1430,35 @@ describe('base skill support', () => {
     },
   };
 
-  it('writes base skill files to .claude/skills/agent-blueprint/', () => {
+  it('writes base skill files for Claude Code and Codex discovery', () => {
     const files = renderSkillDirectory(baseSkillInput);
     expect(files.has('.claude/skills/agent-blueprint/SKILL.md')).toBe(true);
     expect(files.has('.claude/skills/agent-blueprint/references/DEPLOYMENT_PATTERNS.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint/SKILL.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint/references/DEPLOYMENT_PATTERNS.md')).toBe(true);
     expect(files.get('.claude/skills/agent-blueprint/SKILL.md')).toContain('Base Skill');
     expect(files.get('.claude/skills/agent-blueprint/references/DEPLOYMENT_PATTERNS.md')).toContain('Deployment Patterns');
+    expect(files.get('.agents/skills/agent-blueprint/SKILL.md')).toContain('Base Skill');
+    expect(files.get('.agents/skills/agent-blueprint/references/DEPLOYMENT_PATTERNS.md')).toContain('Deployment Patterns');
   });
 
   it('increases file count by number of base skill files', () => {
     const files = renderSkillDirectory(baseSkillInput);
-    expect(files.size).toBe(22); // 20 base + 2 base skill files
+    expect(files.size).toBe(24); // 20 base + 2 base skill files copied to Claude and Codex
   });
 
   it('SKILL.md body mentions base skill location', () => {
     const files = renderSkillDirectory(baseSkillInput);
     const skill = files.get('SKILL.md')!;
     expect(skill).toContain('.claude/skills/agent-blueprint/');
+    expect(skill).toContain('.agents/skills/agent-blueprint/');
   });
 
   it('GETTING-STARTED.md mentions base skill', () => {
     const files = renderSkillDirectory(baseSkillInput);
     const guide = files.get('GETTING-STARTED.md')!;
     expect(guide).toContain('.claude/skills/agent-blueprint/');
+    expect(guide).toContain('.agents/skills/agent-blueprint/');
   });
 
   it('return-visit GETTING-STARTED.md mentions base skill', () => {
@@ -1463,6 +1469,7 @@ describe('base skill support', () => {
     const files = renderSkillDirectory(input);
     const guide = files.get('GETTING-STARTED.md')!;
     expect(guide).toContain('.claude/skills/agent-blueprint/');
+    expect(guide).toContain('.agents/skills/agent-blueprint/');
   });
 });
 
@@ -1481,17 +1488,22 @@ describe('multi-file vendor skill support', () => {
     },
   };
 
-  it('writes all vendor skill files from files array', () => {
+  it('writes all vendor skill files for Claude Code and Codex discovery', () => {
     const files = renderSkillDirectory(multiFileVendorInput);
     expect(files.has('.claude/skills/agent-blueprint-servicenow/SKILL.md')).toBe(true);
     expect(files.has('.claude/skills/agent-blueprint-servicenow/references/LESSONS.md')).toBe(true);
     expect(files.has('.claude/skills/agent-blueprint-servicenow/references/PLATFORM_REFERENCE.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint-servicenow/SKILL.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint-servicenow/references/LESSONS.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint-servicenow/references/PLATFORM_REFERENCE.md')).toBe(true);
   });
 
   it('vendor skill file contents are correct', () => {
     const files = renderSkillDirectory(multiFileVendorInput);
     expect(files.get('.claude/skills/agent-blueprint-servicenow/SKILL.md')).toContain('SN Skill');
     expect(files.get('.claude/skills/agent-blueprint-servicenow/references/LESSONS.md')).toContain('Lesson content');
+    expect(files.get('.agents/skills/agent-blueprint-servicenow/SKILL.md')).toContain('SN Skill');
+    expect(files.get('.agents/skills/agent-blueprint-servicenow/references/LESSONS.md')).toContain('Lesson content');
   });
 
   it('falls back to single SKILL.md when no files array', () => {
@@ -1505,7 +1517,9 @@ describe('multi-file vendor skill support', () => {
     };
     const files = renderSkillDirectory(input);
     expect(files.has('.claude/skills/agent-blueprint-servicenow/SKILL.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint-servicenow/SKILL.md')).toBe(true);
     expect(files.get('.claude/skills/agent-blueprint-servicenow/SKILL.md')).toContain('Fallback content');
+    expect(files.get('.agents/skills/agent-blueprint-servicenow/SKILL.md')).toContain('Fallback content');
   });
 
   it('uses new skill name in SKILL.md body', () => {
@@ -1534,7 +1548,10 @@ describe('multi-file vendor skill support', () => {
     };
     const files = renderSkillDirectory(input);
     expect(files.has('.claude/skills/agent-blueprint/SKILL.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint/SKILL.md')).toBe(true);
     expect(files.has('.claude/skills/agent-blueprint-servicenow/SKILL.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint-servicenow/SKILL.md')).toBe(true);
     expect(files.has('.claude/skills/agent-blueprint-servicenow/references/LESSONS.md')).toBe(true);
+    expect(files.has('.agents/skills/agent-blueprint-servicenow/references/LESSONS.md')).toBe(true);
   });
 });
