@@ -147,8 +147,8 @@ async function downloadBlueprint(
   // Write files
   let totalSize = 0;
   for (const [relativePath, content] of result.files) {
-    // Vendor skill files go to project root (not inside outDir)
-    const isSkillFile = relativePath.startsWith('.claude/skills/');
+    // Skill files go to project root (not inside outDir) so agents can auto-discover them.
+    const isSkillFile = relativePath.startsWith('.claude/skills/') || relativePath.startsWith('.agents/skills/');
     const fullPath = isSkillFile ? join(process.cwd(), relativePath) : join(outDir, relativePath);
     const dir = dirname(fullPath);
     await mkdir(dir, { recursive: true });
@@ -163,7 +163,7 @@ async function downloadBlueprint(
   console.error('');
   console.error('Files:');
   for (const [path] of result.files) {
-    if (path.startsWith('.claude/skills/')) {
+    if (path.startsWith('.claude/skills/') || path.startsWith('.agents/skills/')) {
       console.error(`  ${path} (project root)`);
     } else {
       console.error(`  ${path}`);
@@ -171,13 +171,13 @@ async function downloadBlueprint(
   }
   if (result.hasBaseSkill) {
     console.error('');
-    console.error('Base skill installed: .claude/skills/agent-blueprint/');
-    console.error('Claude Code will auto-discover this skill in all future sessions.');
+    console.error('Base skill installed: .claude/skills/agent-blueprint/ and .agents/skills/agent-blueprint/');
+    console.error('Claude Code and Codex will auto-discover this skill in future sessions.');
   }
   if (result.vendorSkillName) {
     console.error('');
-    console.error(`Expert skill installed: .claude/skills/${result.vendorSkillName}/`);
-    console.error('Claude Code will auto-discover this skill in all future sessions.');
+    console.error(`Expert skill installed: .claude/skills/${result.vendorSkillName}/ and .agents/skills/${result.vendorSkillName}/`);
+    console.error('Claude Code and Codex will auto-discover this skill in future sessions.');
   }
   if (result.hasImplementationState) {
     console.error('');
