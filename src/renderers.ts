@@ -1730,8 +1730,9 @@ function buildGettingStartedReturnVisit(input: SkillRenderInput): string {
   // Step 5
   lines.push('## Step 5: Sync your progress');
   lines.push('');
-  lines.push('After implementing each agent or making significant changes, update local');
-  lines.push('`implementation-state.yaml`. In demo/test mode, ask the user before syncing');
+  lines.push('After authoring or implementing anything that changes agent status, update');
+  lines.push('local `implementation-state.yaml` and offer the user a sync in the same turn.');
+  lines.push('Do not wait to be asked. In demo/test mode, ask the user before syncing');
   lines.push('state back to Agent Blueprint.');
   lines.push('');
   lines.push('**MCP tool** (preferred):');
@@ -2040,10 +2041,15 @@ function buildGettingStarted(input: SkillRenderInput): string {
   lines.push('');
   lines.push('Update local `implementation-state.yaml` after each of these events');
   lines.push('(do not wait until the end):');
+  lines.push('- After authoring deployment artifacts for an agent, even before they are applied');
   lines.push('- After implementing an agent');
   lines.push('- After connecting an integration');
   lines.push('- After modifying an agent\'s behavior');
   lines.push('- At the end of every coding session');
+  lines.push('');
+  lines.push('Every time `implementation-state.yaml` changes, offer the user a sync in the');
+  lines.push('same turn. Do not wait to be asked: a silently stale Implementation View');
+  lines.push('defeats the point of tracking. Ask once, sync on approval.');
   lines.push('');
   lines.push('### How to sync');
   lines.push('');
@@ -2902,7 +2908,8 @@ function buildAgentsMd(input: SkillRenderInput): string {
 
   lines.push('## When to sync implementation state');
   lines.push('');
-  lines.push('Sync after each of these events:');
+  lines.push('Sync after each of these events (offer it in the same turn; do not wait to be asked):');
+  lines.push('- After authoring deployment artifacts (status: not_started -> in_progress), even before they are applied');
   lines.push('- After implementing an agent (status: not_started -> implemented)');
   lines.push('- After connecting an integration to an agent');
   lines.push('- After modifying an already-implemented agent (status -> modified)');
