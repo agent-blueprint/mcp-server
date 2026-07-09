@@ -1,12 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+vi.mock('../token-store.js', () => ({
+  loadToken: vi.fn(() => null),
+}));
+
 import { loadConfig } from '../config.js';
+import { loadToken } from '../token-store.js';
 
 describe('loadConfig', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
     vi.unstubAllEnvs();
+    delete process.env.AGENT_BLUEPRINT_API_KEY;
+    delete process.env.AGENT_BLUEPRINT_API_URL;
+    vi.mocked(loadToken).mockReturnValue(null);
   });
 
   afterEach(() => {
