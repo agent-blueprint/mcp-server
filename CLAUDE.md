@@ -6,7 +6,7 @@ This is the MCP server and CLI for Agent Blueprint. npm package: `agentblueprint
 
 ```bash
 npm run build    # TypeScript compile (tsc)
-npm test         # Vitest (1 pre-existing failure in config.test.ts is expected)
+npm test         # Vitest
 npm run dev      # Watch mode
 ```
 
@@ -34,7 +34,7 @@ src/token-store.ts      Persistent token storage
 
 2. **Single source of truth.** CLI and MCP tool paths must share logic, not duplicate it. `fetch-blueprint.ts` handles data fetching + rendering. `directives.ts` handles post-download text. If you need to change behavior that affects both paths, change the shared module. Never put the same string or logic in both `download.ts` and `tools/download-blueprint.ts`.
 
-3. **Test before shipping.** Run `npm test`. 160/161 passing (1 pre-existing config.test.ts failure). If you add new behavior, add tests.
+3. **Test before shipping.** Run `npm test`. All tests must pass. If you add new behavior, add tests.
 
 ## Publishing
 
