@@ -1,6 +1,8 @@
 # agentblueprint
 
-CLI and MCP server for [Agent Blueprint](https://app.agentblueprint.ai) — 23 MCP tools for creating structured business profiles, generating pipeline artifacts, exploring blueprint data, syncing implementation state, and downloading full Agent Skills directories. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.
+CLI and MCP server for [Agent Blueprint](https://agentblueprint.ai). Create structured business profiles, generate pipeline artifacts, explore blueprint data, sync implementation state, and download full Agent Skills directories. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.
+
+Agent Blueprint is delivered through hands-on engagements; API tokens are issued to client teams. If your organization works with Agent Blueprint, this package connects your coding agents to your blueprint registry.
 
 ## CLI Quick Start
 
@@ -63,9 +65,13 @@ You can also start the MCP server explicitly with `agentblueprint serve`.
 
 ## Get an API Key
 
+API access comes with an Agent Blueprint engagement. If your organization is a client:
+
 1. Go to [Agent Blueprint Settings > API Tokens](https://app.agentblueprint.ai/settings/api-tokens)
 2. Click "Create Token"
 3. Copy the token (shown once)
+
+Not a client yet? Get in touch at [agentblueprint.ai](https://agentblueprint.ai/#contact).
 
 ## Supported Headless Workflow
 
