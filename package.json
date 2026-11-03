@@ -1,7 +1,7 @@
 {
   "name": "agentblueprint",
   "version": "0.7.23",
-  "description": "MCP server and CLI for Agent Blueprint. Create structured business profiles, generate pipeline artifacts, explore blueprint data, sync implementation state, and download full Agent Skills directories for implementation by coding agents. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.",
+  "description": "MCP server and CLI for Agent Blueprint client teams (API token issued with an engagement). Free, no-sign-in tools are at https://agentblueprint.ai/mcp and https://agentblueprint.ai/personal. Create structured business profiles, generate pipeline artifacts, explore blueprint data, sync implementation state, and download full Agent Skills directories for implementation by coding agents. Vendor-agnostic output works with ServiceNow, Salesforce, OpenClaw, or any platform.",
   "type": "module",
   "bin": {
     "agentblueprint": "dist/cli.js",

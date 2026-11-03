@@ -4,6 +4,13 @@ CLI and MCP server for [Agent Blueprint](https://agentblueprint.ai). Create stru
 
 Agent Blueprint is delivered through hands-on engagements; API tokens are issued to client teams. If your organization works with Agent Blueprint, this package connects your coding agents to your blueprint registry.
 
+**Not a client? You don't need this package.** Agent Blueprint also has free tools that need no account or token:
+
+- **Draw your agent:** have your coding agent draw a one-page blueprint of itself (what it can read, what it can change, who has to say yes) at [agentblueprint.ai/personal](https://agentblueprint.ai/personal). No sign-up.
+- **Remote MCP server:** `https://agentblueprint.ai/mcp` (Streamable HTTP). No sign-in, read-only, keeps nothing. Tools: `list_benchmark_jobs`, `estimate_agent_cost`, `check_agent_one_page`, `render_agent_map`. Instructions for agents are at [agentblueprint.ai/agents](https://agentblueprint.ai/agents).
+- **One-page agent template:** [agentblueprint.ai/agent-one-page-template](https://agentblueprint.ai/agent-one-page-template).
+- **Agent cost benchmark:** measured cost and tokens for ten everyday jobs on Claude Code and Codex at [agentblueprint.ai/agent-cost-benchmark](https://agentblueprint.ai/agent-cost-benchmark).
+
 ## CLI Quick Start
 
 ```bash
@@ -52,7 +59,7 @@ Add to your Claude Code MCP config (`.claude/settings.json` or project settings)
   "mcpServers": {
     "agent-blueprint": {
       "command": "npx",
-      "args": ["@agentblueprint/mcp-server"],
+      "args": ["-y", "agentblueprint", "serve"],
       "env": {
         "AGENT_BLUEPRINT_API_KEY": "<your-api-key>"
       }
